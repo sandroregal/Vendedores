@@ -10,7 +10,7 @@ App instalável (PWA) que orienta a equipe comercial SP em quatro frentes:
 > O YVIEWCOPA do dia também é lido **no aparelho** — nada sobe para a internet.
 
 ## Arquivos do repositório
-- `index7.html` — app (interface + motor de cálculo + mapa). Sem dados.
+- `index-7.html` — app (interface + motor de cálculo + mapa). Sem dados.
 - `manifest.webmanifest`, `sw.js` — PWA (instalação + cache do shell).
 - `icon-192.png`, `icon-512.png`, `icon-maskable.png` — ícones (logo oficial em selo branco).
 - `.nojekyll` — necessário no GitHub Pages.
