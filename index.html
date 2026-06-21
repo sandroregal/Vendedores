@@ -164,6 +164,18 @@ footer{padding:16px 14px 8px;text-align:center;font-size:10.5px;color:var(--cinz
 .empty .sec{margin-top:14px;font-size:11.5px;color:var(--cinza-cl);}
 .gen{text-align:center;font-size:11px;color:var(--cinza-cl);margin:2px 0 12px;}
 .tg.orf{background:#F3E2DA;color:#9A4423;}
+.segrow{background:#fff;border:1px solid var(--linha);border-radius:11px;padding:10px 12px;margin-bottom:8px;}
+.segrow .sn{font-size:13px;font-weight:700;color:var(--azul);margin-bottom:7px;}
+.segrow .pens{display:flex;gap:7px;flex-wrap:wrap;}
+.penf{flex:1;min-width:64px;text-align:center;background:var(--box);border:1px solid var(--linha);border-radius:8px;padding:6px 4px;font-size:11px;color:var(--cinza-cl);}
+.penf b{display:block;font-size:11px;color:var(--cinza);font-weight:700;}
+.penf i{font-style:normal;font-size:14px;font-weight:800;color:var(--cinza-cl);}
+.penf.core{background:#EEF4FA;border-color:#CFE0F0;}
+.penf.core b{color:var(--azul);} .penf.core i{color:var(--azul);}
+.baskets{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px;}
+.fchip{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;}
+.fchip.on{background:#E9EEF3;color:var(--cinza);}
+.fchip.sug{background:#FDEEDB;color:var(--laranja-esc);}
 </style>
 </head>
 <body>
@@ -203,8 +215,8 @@ const MAPGEO = [{"meso": "São José do Rio Preto", "path": "M279.3,116.1 L278.8
 </script>
 <script>
 /* ===== camada de dados (vazia até carregar) ===== */
-let DATA=null, RET=null, VENDS=[], RVENDS=[];
-const S={role:'gestor',vend:null,rvend:null,selVend:null,tab:'conquista',selMeso:null};
+let DATA=null, RET=null, CROSS=null, VENDS=[], RVENDS=[], XVENDS=[];
+const S={role:'gestor',vend:null,rvend:null,xvend:null,selVend:null,selVendX:null,tab:'conquista',selMeso:null};
 let ORPHAN=new Set();  /* vendedores órfãos derivados do flag dos dados — nenhum nome fixo na casca */
 
 const nf=n=>Number(n).toLocaleString('pt-BR');
@@ -222,8 +234,11 @@ async function idbSet(k,v){try{const db=await idb();const t=db.transaction('kv',
 function ingest(d){
   DATA=d.meso; RET=d.ret;
   VENDS=[...new Set(DATA.flatMap(x=>x.cons))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
-  ORPHAN=new Set(RET.fila.filter(o=>o.orf).map(o=>o.vend));
+  CROSS=d.cross||null;
+  const orfRows=[...RET.fila, ...(CROSS?CROSS.cli:[])].filter(o=>o.orf);
+  ORPHAN=new Set(orfRows.map(o=>o.vend));
   RVENDS=[...new Set(RET.fila.map(o=>o.vend))].filter(v=>!ORPHAN.has(v)).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  XVENDS=CROSS?[...new Set(CROSS.cli.map(o=>o.vend))].filter(v=>!ORPHAN.has(v)).sort((a,b)=>a.localeCompare(b,'pt-BR')):[];
   const vs=document.getElementById('vendsel');
   vs.innerHTML='<option value="">— escolha o vendedor —</option>'+VENDS.map(v=>`<option value="${v}">${v}</option>`).join('');
 }
@@ -349,10 +364,52 @@ function retomadaGestor(){
 }
 
 /* ===== fases futuras ===== */
-function faseCross(){return `<div class="fase"><div class="ic">🧺</div><div class="tag">Fase 2</div><h2>Cross-sell / Cesta</h2>
-  <p>Clientes que já compram, mas poderiam levar mais um produto — a lacuna entre a cesta atual e o mix do segmento.</p>
-  <div class="what"><h4>O que vai mostrar</h4><ul><li>Seus clientes com cesta incompleta vs. o segmento.</li><li>Produto a oferecer e tamanho estimado.</li></ul></div>
-  <p class="src">Entra na base de produtos por cliente-dia.</p></div>`;}
+const xFila=v=>CROSS.cli.filter(o=>o.vend===v).sort((a,b)=>b.pri-a.pri);
+function xRow(o){
+  const atual=o.atual.map(f=>`<span class="fchip on">${f}</span>`).join('');
+  const sug=o.gaps.map(g=>`<span class="fchip sug">+${g.p} ~${nf(g.est)}m³</span>`).join('');
+  return `<div class="row" style="cursor:default;align-items:flex-start"><div class="bar" style="background:var(--azul)"></div>
+    <div class="mn"><div class="nm">Cliente ${o.cli} · ${o.cidade}${o.orf?' <span class="tg orf">órfã</span>':''}</div>
+    <div class="ms">${o.seg} · ${nf(o.volm)} m³/mês</div><div class="baskets">${atual} ${sug}</div></div>
+    <div class="rt"><div class="big">${nf(o.pri)}</div><div class="sm">m³/mês pot.</div></div></div>`;
+}
+function crossGestor(){
+  const X=CROSS.cli, pot=Math.round(X.reduce((s,o)=>s+o.pri,0));
+  const segpot={}; X.forEach(o=>segpot[o.seg]=(segpot[o.seg]||0)+o.pri);
+  const topseg=Object.entries(segpot).sort((a,b)=>b[1]-a[1])[0];
+  const prodc={}; X.forEach(o=>o.gaps.forEach(g=>prodc[g.p]=(prodc[g.p]||0)+1));
+  const topprod=Object.entries(prodc).sort((a,b)=>b[1]-a[1])[0];
+  let h=`<div class="gen">Cross-sell · cesta vs. segmento · ${CROSS.ref}</div><div class="kpis">
+    <div class="kpi"><div class="lab">Clientes com lacuna</div><div class="val">${nf(X.length)}</div><div class="note">cesta incompleta</div></div>
+    <div class="kpi hi"><div class="lab">Potencial cross-sell</div><div class="val">${nf(pot)}<small> m³</small></div><div class="note">esperado/mês</div></div>
+    <div class="kpi"><div class="lab">Segmento líder</div><div class="val" style="font-size:15px;line-height:1.1">${topseg[0]}</div><div class="note">${nf(Math.round(topseg[1]))} m³/mês</div></div>
+    <div class="kpi"><div class="lab">Produto a destravar</div><div class="val" style="font-size:18px">${topprod[0]}</div><div class="note">${nf(topprod[1])} clientes</div></div></div>`;
+  h+=`<div class="secttl">Cesta típica por segmento</div>`;
+  CROSS.seg.forEach(s=>{h+=`<div class="segrow"><div class="sn">${s.seg}</div><div class="pens">`+CROSS.fams.map(f=>`<span class="penf ${s.core.includes(f)?'core':''}"><b>${f}</b><i>${s.pen[f]}%</i></span>`).join('')+`</div></div>`;});
+  h+=`<div class="explain" style="margin-top:10px"><b>Cesta núcleo</b> = famílias compradas por ≥50% dos clientes do segmento (destacadas). É o que se espera que cada cliente daquele segmento leve.</div>`;
+  h+=`<div class="secttl">Potencial por vendedor — toque para ver</div>`;
+  const vmap={}; X.forEach(o=>{(vmap[o.vend]=vmap[o.vend]||{n:0,pot:0,orf:o.orf});vmap[o.vend].n++;vmap[o.vend].pot+=o.pri;});
+  const byV=Object.entries(vmap).map(([v,d])=>({v,...d})).sort((a,b)=>b.pot-a.pot);
+  h+=byV.map(r=>`<div class="row" data-vx="${r.v.replace(/"/g,'')}"><div class="bar" style="background:${r.orf?'#9AA7B3':'var(--azul)'}"></div>
+    <div class="mn"><div class="nm">${r.v}${r.orf?' <span class="tg orf">órfã</span>':''}</div><div class="ms">${nf(r.n)} clientes com lacuna</div></div>
+    <div class="rt"><div class="big">${nf(Math.round(r.pot))}</div><div class="sm">m³/mês pot.</div></div></div>`).join('');
+  if(S.selVendX){h+=`<div class="secttl">Lacunas de ${S.selVendX} (top 40)</div>`+xFila(S.selVendX).slice(0,40).map(xRow).join('');}
+  h+=`<div class="explain"><b>Como funciona.</b> Compara a cesta atual de cada cliente (últimos 3 meses) com a cesta típica do segmento; a família que falta vira oportunidade, dimensionada pelo volume do cliente.
+    <span class="f">Potencial(prod) = volume do cliente × (mix do produto no segmento ÷ mix do que ele já compra)</span>
+    Referência: ${CROSS.ref}.</div>`;
+  return h;
+}
+function crossVendedor(){
+  const sel=`<div class="rvsel"><select id="xvendsel"><option value="">— escolha o vendedor da carteira —</option>${XVENDS.map(v=>`<option value="${v}"${v===S.xvend?' selected':''}>${v}</option>`).join('')}</select></div>`;
+  if(!S.xvend) return sel+`<div class="fase"><div class="ic">🧺</div><h2>Cross-sell / Cesta</h2><p>Escolha o vendedor para ver os clientes com cesta incompleta e o produto a oferecer.</p></div>`;
+  const f=xFila(S.xvend), pot=Math.round(f.reduce((s,o)=>s+o.pri,0));
+  const head=`<div class="vhead"><div class="who">Oportunidades de cesta</div><div class="nm">${S.xvend}</div>
+    <div class="ln">Você tem <b>${nf(f.length)}</b> clientes com cesta incompleta, somando <b>${nf(pot)}</b> m³/mês de potencial. Chip claro = já compra; chip laranja = o que falta oferecer.</div></div>`;
+  const ex=`<div class="explain"><b>Como ler.</b> A sugestão é a família que o segmento dele costuma comprar e este cliente ainda não leva, dimensionada pelo volume atual.
+    <span class="f">Cesta típica = famílias de ≥50% do segmento · Potencial = volume × mix relativo</span>
+    Referência: ${CROSS.ref}.</div>`;
+  return sel+head+f.map(xRow).join('')+ex;
+}
 function fasePacing(){const meta=[['S10',38158],['S500',12810],['Gasolina',12420],['Hidratado',1012]];const tot=meta.reduce((s,m)=>s+m[1],0);
   const mc=meta.map(m=>`<div class="mc"><div class="p">${m[0]}</div><div class="q">${nf(m[1])}</div><div class="u">m³ · ${nf1(m[1]/tot*100)}% do mix</div></div>`).join('');
   return `<div class="fase"><div class="ic">📈</div><div class="tag">Fase 3</div><h2>Pacing de Meta</h2>
@@ -375,24 +432,24 @@ function render(){
   const subm={conquista:'Conquista',retomada:'Retomada',crosssell:'Cross-sell',pacing:'Pacing'};
   document.getElementById('vendwrap').classList.toggle('hide', !(DATA&&S.tab==='conquista'&&S.role==='vendedor'));
   if(!DATA||!RET){
-    if(S.tab==='crosssell'){m.innerHTML=faseCross();}
-    else if(S.tab==='pacing'){m.innerHTML=fasePacing();}
-    else {m.innerHTML=emptyState();}
+    m.innerHTML=(S.tab==='pacing')?fasePacing():emptyState();
     document.getElementById('subref').textContent='Carregue os dados';
     return;
   }
   if(S.tab==='conquista'){m.innerHTML=S.role==='gestor'?conquistaGestor():conquistaVendedor();}
   else if(S.tab==='retomada'){m.innerHTML=S.role==='gestor'?retomadaGestor():retomadaVendedor();}
-  else if(S.tab==='crosssell'){m.innerHTML=faseCross();}
+  else if(S.tab==='crosssell'){m.innerHTML=CROSS?(S.role==='gestor'?crossGestor():crossVendedor()):emptyState();}
   else {m.innerHTML=fasePacing();}
   document.getElementById('subref').textContent = subm[S.tab]+' · '+RET.ref;
   m.querySelectorAll('[data-m]').forEach(el=>el.addEventListener('click',()=>{const mm=el.getAttribute('data-m');S.selMeso=(S.selMeso===mm)?null:mm;render();setTimeout(()=>{const d=document.querySelector('.drill');if(d)d.scrollIntoView({behavior:'smooth',block:'center'});},60);}));
   const rv=document.getElementById('rvendsel'); if(rv) rv.addEventListener('change',()=>{S.rvend=rv.value||null;render();});
+  const xv=document.getElementById('xvendsel'); if(xv) xv.addEventListener('change',()=>{S.xvend=xv.value||null;render();});
+  m.querySelectorAll('[data-vx]').forEach(el=>el.addEventListener('click',()=>{const vv=el.getAttribute('data-vx');S.selVendX=(S.selVendX===vv)?null:vv;render();setTimeout(()=>{const d=[...document.querySelectorAll('.secttl')].pop();if(d)d.scrollIntoView({behavior:'smooth',block:'start'});},60);}));
   m.querySelectorAll('[data-v]').forEach(el=>el.addEventListener('click',()=>{const vv=el.getAttribute('data-v');S.selVend=(S.selVend===vv)?null:vv;render();setTimeout(()=>{const d=[...document.querySelectorAll('.secttl')].pop();if(d)d.scrollIntoView({behavior:'smooth',block:'start'});},60);}));
 }
 
 document.getElementById('roleseg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S.role=b.dataset.role;S.selMeso=null;document.querySelectorAll('#roleseg button').forEach(x=>x.classList.toggle('on',x===b));render();});
-document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S.tab=b.dataset.tab;S.selMeso=null;document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('on',x===b));render();});
+document.getElementById('nav').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S.tab=b.dataset.tab;S.selMeso=null;S.selVend=null;S.selVendX=null;document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('on',x===b));render();});
 document.getElementById('vendsel').addEventListener('change',function(){S.vend=this.value||null;S.selMeso=null;render();});
 
 if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}

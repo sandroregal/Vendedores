@@ -38,6 +38,8 @@ ATUALIZAR OS DADOS
   `copiloto_dados.json` a partir das bases (ANP + vendas) e distribui-se o arquivo.
 - Carregar o novo arquivo pelo ⟳ substitui o anterior no aparelho.
 
+Fase 2 (Cross-sell) ATIVA: cesta atual × cesta típica do segmento.
+
 Identidade Royal FIC · Volume m³ · Margem R$/L · Oportunidade em p.p.
 Reclassificações vigentes: ex-vendedores (Patrícia, Valéria, Maurício, Vital) = carteira
 órfã a redistribuir; Neusa e Tatiana = Mesa (fora da fila); Taciana = carteira normal.
