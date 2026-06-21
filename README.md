@@ -1,45 +1,38 @@
-# Copiloto Comercial SP — Royal FIC (modelo seguro: casca + dados)
+# Copiloto Comercial SP — Royal FIC (casca/PWA)
 
-Este pacote é a **CASCA** do app: só interface, lógica e o mapa de SP.
-**NÃO contém nenhum dado da Royal.** Pode ir para um repositório público sem risco.
+App instalável (PWA) que orienta a equipe comercial SP em quatro frentes:
+**Conquista** (espaço em branco ANP), **Retomada** (carteira em risco por recência/ciclo),
+**Cross-sell** (cesta incompleta por segmento) e **Pacing**.
 
-Os números (Conquista e Retomada) ficam num arquivo separado — **copiloto_dados.json** —
-que mora **apenas no seu aparelho** e é carregado pelo botão ⟳ dentro do app.
+> **Privacidade:** este repositório **não contém nenhum dado da Royal nem nomes**.
+> A base histórica é carregada **uma única vez no próprio aparelho** (arquivo
+> `historico_SP.json`, entregue à parte) e fica guardada só no celular (IndexedDB).
+> O YVIEWCOPA do dia também é lido **no aparelho** — nada sobe para a internet.
 
-============================================================
-REGRA DE OURO DE SEGURANÇA
-============================================================
-- No GitHub vai SÓ esta casca (sem dados).
-- O arquivo `copiloto_dados.json` NUNCA entra no repositório.
-  Ele é compartilhado direto com cada usuário (WhatsApp/e-mail/cabo) e carregado no app.
-- Assim, mesmo que alguém descubra o link público, não vê nenhum dado da Royal.
+## Arquivos do repositório
+- `index.html` — app (interface + motor de cálculo + mapa). Sem dados.
+- `manifest.webmanifest`, `sw.js` — PWA (instalação + cache do shell).
+- `icon-192.png`, `icon-512.png`, `icon-maskable.png` — ícones (logo oficial em selo branco).
+- `.nojekyll` — necessário no GitHub Pages.
 
-============================================================
-PASSO 1 — PUBLICAR A CASCA (uma vez)
-============================================================
-1. Crie um repositório, ex.: `Copiloto-SP`.
-2. Suba TODOS os arquivos desta pasta na RAIZ (index.html, manifest, sw.js,
-   icon-*.png, .nojekyll). **Não suba o copiloto_dados.json.**
-3. Settings → Pages → Branch `main` → `/ (root)` → Save.
-4. Link do time: `https://sandroregal.github.io/Copiloto-SP/`
+## Publicar no GitHub Pages
+1. Crie um repositório (ex.: `copiloto-sp`).
+2. Envie **todos os arquivos desta pasta** para a **raiz** do repositório.
+3. **Settings → Pages → Branch: `main` / `/ (root)` → Save**.
+4. Aguarde ~1 min. O endereço será `https://SEU-USUARIO.github.io/copiloto-sp/`.
 
-============================================================
-PASSO 2 — CARREGAR OS DADOS (cada usuário, no aparelho)
-============================================================
-1. Abra o link no celular e instale (Adicionar à tela inicial).
-2. Salve o `copiloto_dados.json` no aparelho.
-3. No app, toque em ⟳ → selecione o `copiloto_dados.json`.
-4. Pronto. O app guarda os dados localmente e reabre sozinho nas próximas vezes.
+## Usar no celular (1ª vez)
+1. Abra o endereço no **Chrome**.
+2. Menu **⋮ → Adicionar à tela inicial / Instalar app**.
+3. Abra o app pelo ícone. Ele pedirá a **base histórica**:
+   toque em **Carregar base histórica** e selecione o **`historico_SP.json`**.
+   (fica salvo no aparelho; só precisa fazer isso uma vez)
 
-============================================================
-ATUALIZAR OS DADOS
-============================================================
-- Conquista (mensal) e Retomada (diária/semanal): gera-se um novo
-  `copiloto_dados.json` a partir das bases (ANP + vendas) e distribui-se o arquivo.
-- Carregar o novo arquivo pelo ⟳ substitui o anterior no aparelho.
+## Dia a dia
+- Toque em **⟳** (canto superior) e selecione o **YVIEWCOPA.CSV** do dia.
+- O app recalcula tudo no aparelho e guarda o resultado (abre offline depois).
+- A referência ("hoje") é sempre a **última data do YVIEWCOPA** carregado.
 
-Fase 2 (Cross-sell) ATIVA: cesta atual × cesta típica do segmento.
-
-Identidade Royal FIC · Volume m³ · Margem R$/L · Oportunidade em p.p.
-Reclassificações vigentes: ex-vendedores (Patrícia, Valéria, Maurício, Vital) = carteira
-órfã a redistribuir; Neusa e Tatiana = Mesa (fora da fila); Taciana = carteira normal.
+## Atualizar a base histórica (eventual)
+Quando houver novos meses fechados, gera-se um novo `historico_SP.json`.
+No app, é só carregá-lo de novo (substitui a base no aparelho).
