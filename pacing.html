@@ -657,35 +657,31 @@ async function shareVend(nome){
 
   let msg = abertura + '\n\n';
 
-  // --- helpers p/ alinhar colunas ---
+  // --- helpers ---
   const pad = (s,n) => String(s).padStart(n,' ');
 
-  // --- Tabela principal: Pacing ---
-  const ferNote = r.fer > 0 ? ` (${r.fer}d ferias)` : '';
+  // --- Tabela unica compacta ---
   msg += '```\n';
-  msg += `Realizado  ${pad(nf(Math.round(r.real)),7)} m³  ${pad(nf1(r.pct),5)}%\n`;
-  msg += `Meta       ${pad(nf(r.meta),7)} m³\n`;
+  msg += `Real  ${pad(nf(Math.round(r.real)),6)}  ${pad(nf1(r.pct),5)}%\n`;
+  msg += `Meta  ${pad(nf(r.meta),6)}\n`;
   if(r.gap > 0){
-    msg += `Gap        ${pad(nf(Math.round(r.gap)),7)} m³  ${pad(nf1(diasRest),5)}d rest.\n`;
+    msg += `Gap   ${pad(nf(Math.round(r.gap)),6)}  ${pad(nf1(diasRest),5)}d\n`;
   } else {
-    msg += `Acima      ${pad(nf(Math.round(Math.abs(r.gap))),7)} m³\n`;
+    msg += `Acima ${pad(nf(Math.round(Math.abs(r.gap))),6)}\n`;
   }
-  msg += `Projecao   ${pad(nf(Math.round(r.proj)),7)} m³  ${pad(nf1(r.pctProj),5)}%\n`;
-  msg += `Ritmo      ${pad(nf1(r.ritmo),7)} m³/dia\n`;
+  msg += `Proj  ${pad(nf(Math.round(r.proj)),6)}  ${pad(nf1(r.pctProj),5)}%\n`;
   if(r.gap > 0){
-    msg += `Necessario ${pad(nf1(r.necessario),7)} m³/dia\n`;
+    msg += `Ritmo ${pad(nf1(r.ritmo),6)}  Nec ${nf1(r.necessario)}\n`;
+  } else {
+    msg += `Ritmo ${pad(nf1(r.ritmo),6)} m³/dia\n`;
   }
-  msg += '```\n\n';
-
-  // --- Tabela Mix ---
+  msg += `─────────────────────\n`;
   const mp = [{k:'s10',l:'S10'},{k:'s500',l:'S500'},{k:'gas',l:'Gas'},{k:'hid',l:'Hid'}];
-  const mixLines = mp.filter(x=>r.realProd[x.k]>0).map(x=>`${x.l.padEnd(5)} ${pad(nf(Math.round(r.realProd[x.k])),6)} m³`);
-  if(mixLines.length){
-    msg += '```\n';
-    mixLines.forEach(l => msg += l + '\n');
-    msg += `Cli   ${pad(r.nCli,6)} de ${r.cliMeta}${ferNote}\n`;
-    msg += '```\n\n';
-  }
+  const mix = mp.filter(x=>r.realProd[x.k]>0).map(x=>`${x.l} ${nf(Math.round(r.realProd[x.k]))}`);
+  msg += mix.join(' | ') + '\n';
+  const ferNote = r.fer > 0 ? ` (fer ${r.fer}d)` : '';
+  msg += `Cli ${r.nCli} de ${r.cliMeta}${ferNote}\n`;
+  msg += '```\n\n';
 
   // --- Carteira (Copiloto) ---
   const hasRet = retFila.length > 0;
