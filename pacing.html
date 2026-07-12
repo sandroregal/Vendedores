@@ -570,21 +570,102 @@ function render(){
 }
 
 /* ===== WhatsApp share ===== */
+function pickMsg(arr){
+  const d=new Date(); const idx=(d.getFullYear()*1000+d.getMonth()*31+d.getDate())%arr.length;
+  return arr[idx];
+}
 function shareVend(nome){
   if(!DATA) return;
   const r = DATA.results.find(x=>x.nome===nome);
   if(!r) return;
-  const {maxDay, M, Y, effEl, effFull, factor} = DATA;
+  const {maxDay, M, Y, effEl, effFull} = DATA;
   const dt = `${String(maxDay).padStart(2,'0')}/${String(M).padStart(2,'0')}/${Y}`;
-  const status = r.pctProj >= 95 ? '✅' : (r.pctProj >= 75 ? '⚠️' : '🔴');
-  let msg = `📊 *Pacing SP — ${r.nome}*\n`;
-  msg += `Até ${dt} (${nf1(effEl)} de ${nf1(effFull)} dias úteis)\n\n`;
-  msg += `${status} *Realizado: ${nf(Math.round(r.real))} m³* (${nf1(r.pct)}% da meta)\n`;
-  msg += `Projeção: ${nf(Math.round(r.proj))} m³ (${nf1(r.pctProj)}%)\n`;
-  msg += `Meta: ${nf(r.meta)} m³ · Gap: ${nf(Math.round(r.gap))} m³\n\n`;
-  msg += `S10: ${nf(Math.round(r.realProd.s10))} · S500: ${nf(Math.round(r.realProd.s500))} · Gas: ${nf(Math.round(r.realProd.gas))} · Hid: ${nf(Math.round(r.realProd.hid))}\n`;
-  msg += `Clientes: ${r.nCli} ativos (meta: ${r.cliMeta})\n`;
-  msg += `Ritmo: ${nf1(r.ritmo)} m³/dia · Necessário: ${nf1(r.necessario)} m³/dia`;
+  const diasRest = Math.max(0, Math.round((effFull - effEl)*10)/10);
+  const primeiro = r.nome.split(' ')[0];
+
+  let msg = `Fala, *${primeiro}*! 👋\n`;
+  msg += `Segue teu pacing atualizado até *${dt}* (${nf1(effEl)} de ${nf1(effFull)} dias úteis):\n\n`;
+
+  // Realizado x Meta
+  msg += `📦 *Realizado: ${nf(Math.round(r.real))} m³* — isso representa *${nf1(r.pct)}%* da sua meta de ${nf(r.meta)} m³.\n`;
+
+  if(r.gap > 0){
+    msg += `Faltam *${nf(Math.round(r.gap))} m³* pra bater, em ${nf1(diasRest)} dias úteis restantes.\n\n`;
+  } else {
+    msg += `Você já *ultrapassou* a meta em ${nf(Math.round(Math.abs(r.gap)))} m³! 🔥\n\n`;
+  }
+
+  // Projeção
+  if(r.pctProj >= 120){
+    msg += `📈 *Projeção: ${nf(Math.round(r.proj))} m³ (${nf1(r.pctProj)}%)* — ritmo excelente, caminhando pra estourar a meta!\n\n`;
+  } else if(r.pctProj >= 95){
+    msg += `📈 *Projeção: ${nf(Math.round(r.proj))} m³ (${nf1(r.pctProj)}%)* — no caminho certo pra bater a meta.\n\n`;
+  } else if(r.pctProj >= 75){
+    msg += `⚠️ *Projeção: ${nf(Math.round(r.proj))} m³ (${nf1(r.pctProj)}%)* — pacing apertado, mas dá pra buscar.\n\n`;
+  } else {
+    msg += `🔴 *Projeção: ${nf(Math.round(r.proj))} m³ (${nf1(r.pctProj)}%)* — precisa acelerar o ritmo.\n\n`;
+  }
+
+  // Ritmo
+  msg += `⏱ Teu ritmo atual: *${nf1(r.ritmo)} m³/dia*`;
+  if(r.gap > 0){
+    msg += ` · Necessário: *${nf1(r.necessario)} m³/dia*\n\n`;
+  } else {
+    msg += `\n\n`;
+  }
+
+  // Mix resumido
+  const prods = [];
+  if(r.realProd.s10 > 0) prods.push(`S10 ${nf(Math.round(r.realProd.s10))}`);
+  if(r.realProd.s500 > 0) prods.push(`S500 ${nf(Math.round(r.realProd.s500))}`);
+  if(r.realProd.gas > 0) prods.push(`Gas ${nf(Math.round(r.realProd.gas))}`);
+  if(r.realProd.hid > 0) prods.push(`Hid ${nf(Math.round(r.realProd.hid))}`);
+  if(prods.length) msg += `🛢 Mix: ${prods.join(' · ')} m³\n`;
+  msg += `👥 Clientes: ${r.nCli} ativos (meta: ${r.cliMeta})\n\n`;
+
+  // Mensagem motivacional contextual (rotativa por dia)
+  if(r.pctProj >= 120){
+    msg += pickMsg([
+      `🏆 Tá voando, ${primeiro}! Mantém esse ritmo que o resultado vem forte.`,
+      `💪 Performance acima da média! Cada m³ a mais consolida sua posição.`,
+      `🚀 Ritmo de campeão! Aproveita o embalo e fecha o mês em grande estilo.`,
+      `⭐ Excelente trabalho! Esse resultado mostra a qualidade do teu esforço.`,
+      `🔥 Mês excepcional! Continua firme que está fazendo a diferença.`,
+      `🎯 Acima da meta e acelerando — é isso que separa os melhores.`,
+      `💎 Resultado consistente, ${primeiro}! Cada dia conta e você tá aproveitando todos.`
+    ]);
+  } else if(r.pctProj >= 95){
+    msg += pickMsg([
+      `✅ Bom ritmo, ${primeiro}! Mantém a constância que a meta tá garantida.`,
+      `👊 Tá no caminho certo! Foca nos próximos dias e fecha com tranquilidade.`,
+      `📊 Pacing saudável! Segue firme no plano e o resultado aparece.`,
+      `💪 Consistência é a chave — e você tá mostrando isso. Segue forte!`,
+      `🎯 Meta no radar! Mantém a disciplina que o mês fecha bem.`,
+      `✨ Trabalho sólido! Continua nessa pegada que tá tudo alinhado.`,
+      `🤝 Bom trabalho, ${primeiro}! O esforço diário tá aparecendo no número.`
+    ]);
+  } else if(r.pctProj >= 75){
+    msg += pickMsg([
+      `⚡ Momento de virada, ${primeiro}! Foca nos clientes com maior potencial e acelera.`,
+      `💪 Dá pra buscar! Revisa tua carteira e prioriza os volumes maiores.`,
+      `🎯 A meta ainda tá no jogo — cada visita conta. Bora intensificar!`,
+      `📞 Hora de apertar o passo! Liga pros clientes que estão parados.`,
+      `🔑 O gap é recuperável. Identifica as oportunidades e vai pra cima!`,
+      `⏰ Ainda tem tempo, ${primeiro}! Organiza a semana e foca no que dá volume.`,
+      `🏃 Ritmo precisa subir, mas nada impossível. Vamos juntos nessa!`
+    ]);
+  } else {
+    msg += pickMsg([
+      `🚨 ${primeiro}, precisa de uma reação forte. Vamos conversar e montar um plano de ação?`,
+      `📋 Momento de reagir! Mapeia os clientes inativos e faz um mutirão de visitas.`,
+      `💬 O mês tá apertado, mas não acabou. Vamos alinhar uma estratégia juntos?`,
+      `🔄 Hora de mudar o jogo! Foca nos clientes de maior volume e recupera terreno.`,
+      `📍 Situação exige atenção. Conta comigo pra montar um plano de recuperação.`,
+      `⚠️ Precisa acelerar, ${primeiro}. Prioriza as entregas de maior impacto.`,
+      `🤝 Resultado abaixo do esperado, mas dá pra virar. Vamos traçar um plano?`
+    ]);
+  }
+
   window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
 }
 
