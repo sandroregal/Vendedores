@@ -591,10 +591,42 @@ function render(){
   }));
 }
 
+/* ===== IndexedDB — leitura do Copiloto (mesmo origin) ===== */
+function copilotoIdb(){return new Promise((res,rej)=>{const r=indexedDB.open('copilotoSP',1);r.onupgradeneeded=e=>e.target.result.createObjectStore('kv');r.onsuccess=e=>res(e.target.result);r.onerror=()=>res(null);});}
+async function copilotoGet(){try{const db=await copilotoIdb();if(!db)return null;return await new Promise(res=>{const t=db.transaction('kv').objectStore('kv').get('dados');t.onsuccess=()=>res(t.result||null);t.onerror=()=>res(null);});}catch(e){return null;}}
+
 /* ===== WhatsApp share ===== */
 const pick = arr => arr[Math.floor(Math.random()*arr.length)];
 
-function shareVend(nome){
+function vendNormShare(s){return (s||'').trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
+function matchVendCopiloto(nome, list){
+  const n = vendNormShare(nome);
+  for(const item of list){
+    const v = vendNormShare(item.vend);
+    if(v === n) return true;
+    if(v.includes(n) || n.includes(v)) return true;
+    const tokens = n.split(/\s+/);
+    if(tokens.length > 1 && tokens.every(t => v.includes(t))) return true;
+    const vTokens = v.split(/\s+/);
+    if(vTokens.length > 1 && vTokens.every(t => n.includes(t))) return true;
+  }
+  return false;
+}
+function filterVendCopiloto(nome, list){
+  const n = vendNormShare(nome);
+  return list.filter(item => {
+    const v = vendNormShare(item.vend);
+    if(v === n) return true;
+    if(v.includes(n) || n.includes(v)) return true;
+    const tokens = n.split(/\s+/);
+    if(tokens.length > 1 && tokens.every(t => v.includes(t))) return true;
+    const vTokens = v.split(/\s+/);
+    if(vTokens.length > 1 && vTokens.every(t => n.includes(t))) return true;
+    return false;
+  });
+}
+
+async function shareVend(nome){
   if(!DATA) return;
   const r = DATA.results.find(x=>x.nome===nome);
   if(!r) return;
@@ -603,179 +635,148 @@ function shareVend(nome){
   const diasRest = Math.max(0, r.vRestDays);
   const p = r.nome.split(' ')[0];
 
-  // Saudação randomizada
-  const saudacao = pick([
-    `E aí, *${p}*! 👋`,
-    `Fala, *${p}*! 👊`,
-    `Opa, *${p}*! ✌️`,
-    `Salve, *${p}*! 🤙`,
-    `Beleza, *${p}*? 👋`,
-    `E aí, *${p}*, tudo certo? 💪`,
-    `Oi, *${p}*! 👋`,
-    `Fala, *${p}*, beleza? 🙌`,
-    `*${p}*, bora lá! 🚀`,
-    `Tranquilo, *${p}*? 👋`
+  // Copiloto data (async, graceful fallback)
+  let retFila = [], crossCli = [];
+  try {
+    const cop = await copilotoGet();
+    if(cop && cop.ret && cop.ret.fila) retFila = filterVendCopiloto(r.nome, cop.ret.fila);
+    if(cop && cop.cross && cop.cross.cli) crossCli = filterVendCopiloto(r.nome, cop.cross.cli);
+  } catch(e){}
+
+  // --- Abertura ---
+  const abertura = pick([
+    `*${p}*, segue teu pacing consolidado.`,
+    `*${p}*, teu resumo de performance atualizado.`,
+    `*${p}*, acompanhamento do mês — dados até ${dt}.`,
+    `*${p}*, veja como está o teu número.`,
+    `*${p}*, teu posicionamento até o momento.`,
+    `*${p}*, panorama atualizado da tua carteira.`,
+    `*${p}*, confere teu resultado parcial.`,
+    `*${p}*, teu mês em perspectiva.`
   ]);
 
-  // Transição randomizada
-  const transicao = pick([
-    `Segue teu pacing atualizado até *${dt}*`,
-    `Olha como tá teu número até *${dt}*`,
-    `Teu resumo até *${dt}*`,
-    `Acompanhamento até *${dt}*`,
-    `Veja como tá até *${dt}*`,
-    `Teu pacing até o momento (*${dt}*)`,
-    `Atualização do teu mês até *${dt}*`,
-    `Confere teu resultado até *${dt}*`
-  ]);
+  let msg = abertura + '\n\n';
 
-  let msg = saudacao + `\n` + transicao;
+  // --- Bloco 1: Resultado ---
+  msg += `*RESULTADO*\n`;
+  msg += `Realizado: *${nf(Math.round(r.real))} m³* de ${nf(r.meta)} m³ (*${nf1(r.pct)}%* da meta)\n`;
+  if(r.gap > 0){
+    msg += `Gap: ${nf(Math.round(r.gap))} m³ em ${nf1(diasRest)} dias restantes\n`;
+  } else {
+    msg += `Meta superada em ${nf(Math.round(Math.abs(r.gap)))} m³\n`;
+  }
   if(r.fer > 0){
-    msg += ` (${nf1(r.vEffFull)} dias úteis — ${r.fer}d de férias descontados):\n\n`;
-  } else {
-    msg += ` (${nf1(effEl)} de ${nf1(effFull)} dias úteis):\n\n`;
+    msg += `Dias efetivos: ${nf1(r.vEffFull)} (${r.fer}d de férias descontados)\n`;
   }
+  msg += '\n';
 
-  // Realizado x Meta — variações
-  const realIntro = pick([
-    `📦 *Realizado: ${nf(Math.round(r.real))} m³* — isso representa *${nf1(r.pct)}%* da meta de ${nf(r.meta)} m³.`,
-    `📦 Até agora: *${nf(Math.round(r.real))} m³* (*${nf1(r.pct)}%* da meta de ${nf(r.meta)} m³).`,
-    `📦 Teu realizado tá em *${nf(Math.round(r.real))} m³* — *${nf1(r.pct)}%* dos ${nf(r.meta)} m³ da meta.`,
-    `📦 *${nf(Math.round(r.real))} m³ realizados* — são *${nf1(r.pct)}%* da tua meta de ${nf(r.meta)} m³.`
-  ]);
-  msg += realIntro + `\n`;
-
+  // --- Bloco 2: Projeção + Ritmo ---
+  msg += `*PROJECAO*\n`;
+  msg += `Fechamento estimado: *${nf(Math.round(r.proj))} m³* (*${nf1(r.pctProj)}%*)\n`;
+  msg += `Ritmo atual: ${nf1(r.ritmo)} m³/dia`;
   if(r.gap > 0){
-    msg += pick([
-      `Faltam *${nf(Math.round(r.gap))} m³* pra bater, em ${nf1(diasRest)} dias úteis restantes.`,
-      `Gap de *${nf(Math.round(r.gap))} m³* — ${nf1(diasRest)} dias úteis pela frente.`,
-      `Ainda faltam *${nf(Math.round(r.gap))} m³* com ${nf1(diasRest)} dias pra fechar.`
-    ]) + `\n\n`;
-  } else {
-    msg += pick([
-      `Você já *ultrapassou* a meta em ${nf(Math.round(Math.abs(r.gap)))} m³! 🔥`,
-      `Meta *batida* e com ${nf(Math.round(Math.abs(r.gap)))} m³ de sobra! 🔥`,
-      `*Acima da meta* em ${nf(Math.round(Math.abs(r.gap)))} m³ — show! 🔥`
-    ]) + `\n\n`;
+    msg += ` | necessario: ${nf1(r.necessario)} m³/dia`;
   }
+  msg += '\n\n';
 
-  // Projeção — variações contextuais
-  if(r.pctProj >= 120){
-    msg += pick([
-      `📈 *Projeção: ${nf(Math.round(r.proj))} m³ (${nf1(r.pctProj)}%)* — ritmo excelente, caminhando pra estourar a meta!`,
-      `📈 Nesse ritmo fecha em *${nf(Math.round(r.proj))} m³ (${nf1(r.pctProj)}%)* — tá sobrando!`,
-      `📈 Projeção de *${nf(Math.round(r.proj))} m³* — *${nf1(r.pctProj)}%* da meta. Resultado forte!`,
-      `📈 Se mantiver o passo, fecha com *${nf(Math.round(r.proj))} m³ (${nf1(r.pctProj)}%)*. Voando!`
-    ]);
-  } else if(r.pctProj >= 95){
-    msg += pick([
-      `📈 *Projeção: ${nf(Math.round(r.proj))} m³ (${nf1(r.pctProj)}%)* — no caminho certo pra bater.`,
-      `📈 Mantendo esse ritmo, fecha em *${nf(Math.round(r.proj))} m³ (${nf1(r.pctProj)}%)* — boa!`,
-      `📈 Projeção de *${nf(Math.round(r.proj))} m³* — *${nf1(r.pctProj)}%*. Tá encaminhado!`,
-      `📈 Se continuar assim, bate com *${nf(Math.round(r.proj))} m³ (${nf1(r.pctProj)}%)*. Segue firme!`
-    ]);
-  } else if(r.pctProj >= 75){
-    msg += pick([
-      `⚠️ *Projeção: ${nf(Math.round(r.proj))} m³ (${nf1(r.pctProj)}%)* — pacing apertado, mas dá pra buscar.`,
-      `⚠️ No ritmo atual fecha em *${nf(Math.round(r.proj))} m³ (${nf1(r.pctProj)}%)* — precisa apertar.`,
-      `⚠️ Projeção de *${nf(Math.round(r.proj))} m³ (${nf1(r.pctProj)}%)* — pacing abaixo, mas recuperável.`,
-      `⚠️ Se não acelerar, fecha em *${nf(Math.round(r.proj))} m³ (${nf1(r.pctProj)}%)*. Dá pra virar!`
-    ]);
-  } else {
-    msg += pick([
-      `🔴 *Projeção: ${nf(Math.round(r.proj))} m³ (${nf1(r.pctProj)}%)* — precisa acelerar o ritmo.`,
-      `🔴 No passo atual, fecha em *${nf(Math.round(r.proj))} m³ (${nf1(r.pctProj)}%)* — abaixo do esperado.`,
-      `🔴 Projeção de *${nf(Math.round(r.proj))} m³ (${nf1(r.pctProj)}%)* — momento de reagir.`,
-      `🔴 Se mantiver esse ritmo: *${nf(Math.round(r.proj))} m³ (${nf1(r.pctProj)}%)*. Precisa de reação.`
-    ]);
-  }
-  msg += `\n\n`;
-
-  // Ritmo
-  msg += pick([
-    `⏱ Teu ritmo: *${nf1(r.ritmo)} m³/dia*`,
-    `⏱ Ritmo atual: *${nf1(r.ritmo)} m³/dia*`,
-    `⏱ Média diária: *${nf1(r.ritmo)} m³/dia*`
-  ]);
-  if(r.gap > 0){
-    msg += ` · Necessário: *${nf1(r.necessario)} m³/dia*\n\n`;
-  } else {
-    msg += `\n\n`;
-  }
-
-  // Mix resumido
+  // --- Bloco 3: Mix (compacto) ---
   const prods = [];
   if(r.realProd.s10 > 0) prods.push(`S10 ${nf(Math.round(r.realProd.s10))}`);
   if(r.realProd.s500 > 0) prods.push(`S500 ${nf(Math.round(r.realProd.s500))}`);
   if(r.realProd.gas > 0) prods.push(`Gas ${nf(Math.round(r.realProd.gas))}`);
   if(r.realProd.hid > 0) prods.push(`Hid ${nf(Math.round(r.realProd.hid))}`);
-  if(prods.length) msg += `🛢 Mix: ${prods.join(' · ')} m³\n`;
-  msg += `👥 Clientes: ${r.nCli} ativos (meta: ${r.cliMeta})\n`;
+  if(prods.length) msg += `Mix: ${prods.join(' | ')} m³\n`;
+  msg += `Clientes ativos: ${r.nCli} de ${r.cliMeta}\n`;
+  msg += '\n';
 
-  // Insight de cobertura
+  // --- Bloco 4: Ciclo de Clientes (Copiloto) ---
+  const hasRet = retFila.length > 0;
+  const hasCross = crossCli.length > 0;
+  if(hasRet || hasCross){
+    msg += `*OPORTUNIDADES DA CARTEIRA*\n`;
+    if(hasRet){
+      const retQuente = retFila.filter(o=>o.zona==='quente').length;
+      const retAlerta = retFila.filter(o=>o.zona==='alerta').length;
+      const retPerda = retFila.filter(o=>o.zona==='perda').length;
+      const retVol = Math.round(retFila.reduce((s,o)=>s+o.volm,0));
+      msg += `Retomada: ${retFila.length} clientes atrasados (~${nf(retVol)} m³/mes em jogo)`;
+      const zonas = [];
+      if(retQuente) zonas.push(`${retQuente} quentes`);
+      if(retAlerta) zonas.push(`${retAlerta} alerta`);
+      if(retPerda) zonas.push(`${retPerda} risco`);
+      if(zonas.length) msg += ` — ${zonas.join(', ')}`;
+      msg += '\n';
+      const topRet = retFila.sort((a,b)=>b.pri-a.pri).slice(0,3);
+      for(const o of topRet){
+        msg += `  > Cli ${o.cli} (${o.cidade}) — parado ${o.lapso}d, ~${nf(o.volm)} m³/mes\n`;
+      }
+    }
+    if(hasCross){
+      const crossVol = Math.round(crossCli.reduce((s,o)=>s+o.pri,0));
+      msg += `Cross-sell: ${crossCli.length} clientes com cesta incompleta (~${nf(crossVol)} m³ potencial)\n`;
+      const topCross = crossCli.sort((a,b)=>b.pri-a.pri).slice(0,3);
+      for(const o of topCross){
+        const falta = o.gaps.map(g=>g.p).join(', ');
+        msg += `  > Cli ${o.cli} (${o.cidade}) — falta ${falta}, ~${nf(o.pri)} m³\n`;
+      }
+    }
+    msg += '\n';
+  }
+
+  // --- Bloco 5: Cobertura férias ---
   if(r.cobreInfo){
     const c = r.cobreInfo;
-    msg += `\n` + pick([
-      `🤝 *Oportunidade:* Você cobre ${c.nome} (${c.fer}d férias) — carteira de ${c.cli} clientes e ${nf(c.vol)} m³. Aproveita pra expandir!`,
-      `🤝 *Cobertura ${c.nome}:* ${c.cli} clientes disponíveis com potencial de ${nf(c.vol)} m³. Boa chance de turbinar o resultado!`,
-      `🤝 Com a carteira do ${c.nome} (${c.cli} clientes · ${nf(c.vol)} m³), você tem uma alavanca extra pra fechar o mês forte.`,
-      `🤝 *Extra:* ${c.nome} tá de férias ${c.fer}d — os ${c.cli} clientes da carteira dele são oportunidade pra você.`
-    ]) + `\n`;
+    msg += pick([
+      `*COBERTURA* — Carteira ${c.nome} (${c.fer}d ferias): ${c.cli} clientes, ${nf(c.vol)} m³. Oportunidade real de incremento.`,
+      `*COBERTURA* — Voce assume ${c.nome} (${c.fer}d): ${c.cli} clientes prontos, potencial de ${nf(c.vol)} m³ no periodo.`,
+      `*COBERTURA* — ${c.nome} sai ${c.fer}d. Sao ${c.cli} clientes e ${nf(c.vol)} m³ disponiveis pra voce capitalizar.`
+    ]) + '\n\n';
   }
-  msg += `\n`;
 
-  // Estímulo final — totalmente aleatório
+  // --- Fechamento ---
   if(r.pctProj >= 120){
     msg += pick([
-      `🏆 Tá voando, ${p}! Mantém esse ritmo que o resultado vem forte.`,
-      `💪 Performance acima da média! Cada m³ a mais consolida sua posição.`,
-      `🚀 Ritmo de campeão! Aproveita o embalo e fecha o mês em grande estilo.`,
-      `⭐ Excelente trabalho! Esse resultado mostra a qualidade do teu esforço.`,
-      `🔥 Mês excepcional! Continua firme que está fazendo a diferença.`,
-      `🎯 Acima da meta e acelerando — é isso que separa os melhores.`,
-      `💎 Resultado consistente, ${p}! Cada dia conta e você tá aproveitando todos.`,
-      `👏 Parabéns, ${p}! Esse número fala por si. Segue nessa pegada!`,
-      `🥇 Top demais! Quando o trabalho é bem feito, o número aparece.`,
-      `🌟 ${p}, tá entregando acima do esperado. Isso é referência pro time.`
+      `${p}, resultado solido. Mantem esse padrao que a entrega fala por si.`,
+      `Performance consistente, ${p}. O numero esta acima e o ritmo esta certo.`,
+      `Excelente posicionamento. Segue nessa cadencia que o mes fecha forte.`,
+      `${p}, trabalho bem feito aparece no resultado — e esta aparecendo.`,
+      `Ritmo de alta performance. Cada dia nesse nivel consolida o resultado.`,
+      `O pacing esta confortavel. Aproveita a margem pra fechar acima com folga.`,
+      `${p}, entrega acima da meta e consistente. Referencia pro time.`,
+      `Nada a ajustar aqui — segue firme que o resultado ja esta construido.`
     ]);
   } else if(r.pctProj >= 95){
     msg += pick([
-      `✅ Bom ritmo, ${p}! Mantém a constância que a meta tá garantida.`,
-      `👊 Tá no caminho certo! Foca nos próximos dias e fecha com tranquilidade.`,
-      `📊 Pacing saudável! Segue firme no plano e o resultado aparece.`,
-      `💪 Consistência é a chave — e você tá mostrando isso. Segue forte!`,
-      `🎯 Meta no radar! Mantém a disciplina que o mês fecha bem.`,
-      `✨ Trabalho sólido! Continua nessa pegada que tá tudo alinhado.`,
-      `🤝 Bom trabalho, ${p}! O esforço diário tá aparecendo no número.`,
-      `👍 Tá bem encaminhado, ${p}. Mais alguns dias nesse ritmo e fecha bonito.`,
-      `📈 Ritmo firme! A meta tá ao alcance, é só manter o foco.`,
-      `💼 ${p}, profissionalismo no dia a dia tá gerando resultado. Segue assim!`
+      `Bom ritmo, ${p}. Constancia nos proximos dias e o mes fecha bem.`,
+      `Pacing saudavel. Mantem a disciplina de visitas que a meta esta no alcance.`,
+      `${p}, encaminhado. Foco nos dias restantes garante a entrega.`,
+      `Resultado dentro do esperado. Segue no plano que a meta vem.`,
+      `Trabalho consistente. Mantem essa cadencia e fecha com tranquilidade.`,
+      `${p}, o numero esta no trilho. Nao desacelera que esta perto.`,
+      `Pacing no ponto. Cada dia de constancia agora e margem no fechamento.`,
+      `Meta ao alcance. Segue no ritmo e o resultado se concretiza.`
     ]);
   } else if(r.pctProj >= 75){
     msg += pick([
-      `⚡ Momento de virada, ${p}! Foca nos clientes com maior potencial e acelera.`,
-      `💪 Dá pra buscar! Revisa tua carteira e prioriza os volumes maiores.`,
-      `🎯 A meta ainda tá no jogo — cada visita conta. Bora intensificar!`,
-      `📞 Hora de apertar o passo! Liga pros clientes que estão parados.`,
-      `🔑 O gap é recuperável. Identifica as oportunidades e vai pra cima!`,
-      `⏰ Ainda tem tempo, ${p}! Organiza a semana e foca no que dá volume.`,
-      `🏃 Ritmo precisa subir, mas nada impossível. Vamos juntos nessa!`,
-      `🔧 ${p}, dá pra ajustar! Foca nas entregas de maior impacto nessa reta final.`,
-      `📋 Revisa a agenda, prioriza os maiores e busca fechar volumes pendentes.`,
-      `🤜🤛 Conta com a gente, ${p}. Vamos montar uma estratégia pra buscar essa meta.`
+      `${p}, gap recuperavel. Prioriza os clientes de maior volume e intensifica.`,
+      `Pacing apertado, mas viavel. Revisa a agenda e foca onde tem m³ rapido.`,
+      `O mes ainda esta aberto, ${p}. Identifica os volumes pendentes e vai pra cima.`,
+      `Precisa apertar o ritmo. Clientes parados e cestas incompletas sao o caminho.`,
+      `${p}, da pra buscar. Concentra energia nos maiores e organiza a semana.`,
+      `Momento de ajuste. Mapeia as entregas de maior impacto e executa.`,
+      `Ritmo precisa subir — mas esta ao alcance. Foca e acelera.`,
+      `${p}, a meta pede mais intensidade. Vamos alinhar as prioridades?`
     ]);
   } else {
     msg += pick([
-      `🚨 ${p}, precisa de uma reação forte. Vamos conversar e montar um plano de ação?`,
-      `📋 Momento de reagir! Mapeia os clientes inativos e faz um mutirão de visitas.`,
-      `💬 O mês tá apertado, mas não acabou. Vamos alinhar uma estratégia juntos?`,
-      `🔄 Hora de mudar o jogo! Foca nos clientes de maior volume e recupera terreno.`,
-      `📍 Situação exige atenção. Conta comigo pra montar um plano de recuperação.`,
-      `⚠️ Precisa acelerar, ${p}. Prioriza as entregas de maior impacto.`,
-      `🤝 Resultado abaixo do esperado, mas dá pra virar. Vamos traçar um plano?`,
-      `📊 ${p}, o número tá pedindo ação. Bora sentar e definir os próximos passos?`,
-      `🔍 Vamos olhar junto tua carteira e achar onde tem volume pra recuperar.`,
-      `💡 Cada cliente visitado agora pode fazer diferença. Bora priorizar, ${p}?`
+      `${p}, o numero exige reacao. Vamos conversar e montar um plano de acao.`,
+      `Situacao pede intensidade, ${p}. Foco total nos clientes de maior potencial.`,
+      `Momento critico — precisa de uma virada. Vamos alinhar a estrategia?`,
+      `${p}, resultado abaixo do esperado. Identifica onde tem volume e age agora.`,
+      `O gap esta grande, mas o mes nao acabou. Prioriza e executa com urgencia.`,
+      `${p}, precisa de acao imediata. Conta comigo pra definir os proximos passos.`,
+      `Numero exige atencao, ${p}. Vamos mapear a carteira e montar um plano?`,
+      `Hora de reagir. Foca nos inativos e nos maiores — cada visita conta agora.`
     ]);
   }
 
