@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0E4C89">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pacing Vendedores SP">
+<title>Pacing Vendedores — Royal FIC SP</title>
+<style>
+:root{
+  --azul:#0E4C89; --azul2:#0a3a69; --laranja:#F89D1B; --laranja2:#e08a0c;
+  --verde:#16a34a; --amarelo:#F89D1B; --vermelho:#dc2626;
+  --bg:#eef2f6; --card:#ffffff; --ink:#16263a; --muted:#65788f; --line:#e3e9f0;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-text-size-adjust:100%}
+.app{max-width:560px;margin:0 auto;padding:0 0 28px}
+header{background:linear-gradient(135deg,var(--azul),var(--azul2));color:#fff;
+  padding:calc(env(safe-area-inset-top) + 14px) 16px 16px;position:sticky;top:0;z-index:50;
+  box-shadow:0 4px 16px rgba(10,45,90,.25)}
+.htop{display:flex;align-items:center;gap:12px}
+.badge{background:#fff;border-radius:10px;padding:6px 9px;display:flex;align-items:center;flex:0 0 auto}
+.badge img{height:24px;display:block}
+.htxt{flex:1;min-width:0}
+.htitle{font-size:15px;font-weight:800;letter-spacing:.2px;line-height:1.15}
+.hsub{font-size:11.5px;opacity:.85;margin-top:2px}
+.btn-up{background:var(--laranja);color:#3a2400;border:none;border-radius:10px;
+  font-weight:800;font-size:12.5px;padding:9px 12px;display:flex;align-items:center;gap:6px;cursor:pointer}
+.btn-up:active{background:var(--laranja2)}
+.card{background:var(--card);border-radius:16px;margin:14px 14px 0;padding:16px;
+  box-shadow:0 2px 10px rgba(20,40,70,.06)}
+.card h3{margin:0 0 8px;font-size:12px;font-weight:800;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.6px}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 14px 0}
+.kpi{background:var(--card);border-radius:14px;padding:13px 13px 12px;
+  box-shadow:0 2px 10px rgba(20,40,70,.06);border-left:4px solid var(--azul)}
+.kpi.warn{border-left-color:var(--vermelho)}
+.kpi.ok{border-left-color:var(--verde)}
+.kpi .lab{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.kpi .big{font-size:21px;font-weight:800;margin-top:3px;line-height:1.05}
+.kpi .unit{font-size:12px;font-weight:700;color:var(--muted)}
+.kpi .sub{font-size:11.5px;color:var(--muted);margin-top:3px;font-weight:600}
+.tabs{display:flex;gap:6px;margin:16px 14px 0;background:#dde6ef;border-radius:12px;padding:4px}
+.tab{flex:1;text-align:center;font-size:12.5px;font-weight:700;color:var(--muted);
+  padding:8px 4px;border-radius:9px;cursor:pointer;white-space:nowrap}
+.tab.on{background:#fff;color:var(--azul);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.rows{margin:10px 14px 0}
+.row{padding:12px;background:var(--card);border-radius:12px;margin-bottom:8px;
+  box-shadow:0 2px 8px rgba(20,40,70,.05)}
+.rhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.rname{font-size:14px;font-weight:800}
+.rpct{font-size:12px;font-weight:700;padding:2px 7px;border-radius:6px}
+.rpct.g{background:#d4edda;color:#0f5132}
+.rpct.y{background:#fff3cd;color:#664d03}
+.rpct.r{background:#f8d7da;color:#842029}
+.rdetail{display:flex;gap:10px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
+.rdetail b{color:var(--ink)}
+.track{position:relative;height:12px;background:#eef2f6;border-radius:6px;overflow:visible;margin-top:6px}
+.fill{position:absolute;top:0;left:0;height:100%;border-radius:6px;transition:width .35s}
+.metaflag{position:absolute;top:-2px;width:2px;height:16px;background:var(--ink);border-radius:1px;z-index:2}
+.legend{font-size:10.5px;color:var(--muted);margin:10px 14px 0;display:flex;gap:14px;flex-wrap:wrap}
+.legend span{display:flex;align-items:center;gap:4px}
+.legend .dot{display:inline-block;width:9px;height:9px;border-radius:50%}
+.prod-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+.prod-item{text-align:center;padding:8px 4px;background:#f6f8fa;border-radius:8px}
+.prod-item .pv{font-size:13px;font-weight:800}
+.prod-item .pl{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.benchrow{display:flex;justify-content:space-between;align-items:center;padding:8px 0;
+  border-bottom:1px solid var(--line)}
+.benchrow:last-child{border-bottom:none}
+.benchrow .bn{font-size:13px;font-weight:700;flex:1}
+.benchrow .bv{font-size:12px;font-weight:700;text-align:right;min-width:50px}
+.benchrow .bl{font-size:11px;color:var(--muted);text-align:right;min-width:60px}
+footer{text-align:center;font-size:10.5px;color:var(--muted);margin-top:18px;padding:0 16px;line-height:1.5}
+#fileIn{position:absolute;left:-9999px}
+.flash{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--azul);color:#fff;
+  padding:11px 18px;border-radius:24px;font-size:13px;font-weight:700;z-index:99;
+  box-shadow:0 6px 20px rgba(0,0,0,.3);opacity:0;transition:opacity .3s;pointer-events:none}
+.flash.on{opacity:1}
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty h2{color:var(--ink);font-size:18px;margin-bottom:8px}
+.obs{font-size:10.5px;color:var(--muted);font-style:italic;margin-top:2px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="htop">
+      <div class="badge"><img src="icon-192.png" alt="Royal FIC"></div>
+      <div class="htxt">
+        <div class="htitle">Pacing Vendedores SP</div>
+        <div class="hsub" id="subref">Carregue o YVIEWCOPA do mês</div>
+      </div>
+      <button class="btn-up" id="btnUp">⟳ Atualizar</button>
+    </div>
+  </header>
+  <div id="content">
+    <div class="empty">
+      <h2>Sem dados carregados</h2>
+      <p>Toque em <b>⟳ Atualizar</b> e selecione o arquivo YVIEWCOPA (CSV) com os dados do mês corrente.</p>
+    </div>
+  </div>
+  <footer>
+    Royal FIC · Inteligência Comercial · Pacing Equipe SP · <b>v1</b><br>
+    Uso interno · dados ficam apenas no aparelho.
+  </footer>
+</div>
+<input type="file" id="fileIn" accept=".csv,text/csv,text/plain">
+<div class="flash" id="flash"></div>
+
+<script>
+/* ===== META JULHO 2026 — Regional SP ===== */
+const META_MES = 'jul/2026';
+const DIAS_UTEIS = 24.0; // seg-sex=1, sab=0.5, dom=0; feriado 09/07 removido
+const FERIADOS = new Set(['2026-07-09']);
+
+const VENDEDORES = [
+  {nome:'Kelly',     s10:7814, s500:1801, gas:1706, hid:532,  cli:152, obs:'cobre Valter (férias)'},
+  {nome:'Luís',      s10:4302, s500:934,  gas:1552, hid:0,    cli:118, obs:'férias 10d ef.'},
+  {nome:'Amauri',    s10:3272, s500:2063, gas:722,  hid:9,    cli:101, obs:null},
+  {nome:'Jeferson',  s10:3023, s500:1070, gas:1860, hid:44,   cli:138, obs:null},
+  {nome:'Jéssica',   s10:3835, s500:882,  gas:1175, hid:0,    cli:114, obs:'cobre Luís (férias)'},
+  {nome:'Sérgio Elias', s10:2387, s500:2242, gas:438, hid:86, cli:122, obs:null},
+  {nome:'Rogério',   s10:2753, s500:928,  gas:1083, hid:40,   cli:88,  obs:'cobre S.Cardoso (férias)'},
+  {nome:'Sérgio Cardoso', s10:3133, s500:554, gas:788, hid:120, cli:60, obs:'férias 5d ef.'},
+  {nome:'Valter',    s10:3320, s500:637,  gas:362,  hid:195,  cli:36,  obs:'férias 16d ef.'},
+  {nome:'Driele',    s10:1874, s500:743,  gas:787,  hid:36,   cli:132, obs:'cobre Silvana (férias)'},
+  {nome:'Michelly',  s10:1429, s500:375,  gas:1480, hid:9,    cli:91,  obs:null},
+  {nome:'Taciana',   s10:1399, s500:837,  gas:435,  hid:0,    cli:105, obs:null},
+  {nome:'ST01',      s10:1258, s500:57,   gas:487,  hid:0,    cli:48,  obs:null},
+  {nome:'Silvana',   s10:691,  s500:354,  gas:457,  hid:25,   cli:42,  obs:'férias 11d ef.'},
+  {nome:'Roberto',   s10:880,  s500:422,  gas:21,   hid:0,    cli:16,  obs:null},
+  {nome:'Neusa',     s10:58,   s500:14,   gas:79,   hid:2,    cli:3,   obs:'férias 11d ef.'},
+  {nome:'Tatyana',   s10:49,   s500:11,   gas:67,   hid:2,    cli:3,   obs:'cobre Neusa (férias)'}
+];
+VENDEDORES.forEach(v => v.total = v.s10 + v.s500 + v.gas + v.hid);
+
+const BENCH_CLI = {
+  'Valter':125.4,'Roberto':82.7,'Sérgio Cardoso':76.4,'Amauri':59.8,'Luís':57.6,
+  'Neusa':51,'Rogério':49.9,'Jeferson':43.5,'Sérgio Elias':42.2,'ST01':37.5,
+  'Silvana':36.3,'Michelly':36.2,'Kelly':35.3,'Jéssica':34.8,'Taciana':25.4,'Driele':22.4
+};
+
+const SP_ESC = new Set(['FI09','FI10','FI13','FI22','FI27']);
+const MESA = new Set(['MESA REGIONAL SP','NEUSA']);
+
+/* ===== Parsear YVIEWCOPA ===== */
+function parseDate(s){
+  s=(s||'').trim();
+  let m=s.match(/^(\d{2})[.\/](\d{2})[.\/](\d{4})/);
+  if(!m) return null;
+  return new Date(+m[3],+m[2]-1,+m[1]);
+}
+function artFam(code){
+  code=(code||'').trim().slice(-3);
+  if(code==='101'||code==='102'||code==='103') return 'gas';
+  if(code==='147'||code==='148') return 's10';
+  if(code==='140'||code==='141') return 's500';
+  if(code==='109') return 'hid';
+  return null;
+}
+function vendNorm(s){return (s||'').trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
+
+function parseCSV(txt){
+  const lines = txt.split(/\r?\n/);
+  const vends = {};
+  let maxDate = null;
+  for(let i=1;i<lines.length;i++){
+    const c = lines[i].split(';');
+    if(c.length < 50) continue;
+    const esc = (c[16]||'').trim();
+    if(!SP_ESC.has(esc)) continue;
+    const fam = artFam(c[7]);
+    if(fam === null) continue;
+    const d = parseDate(c[6]);
+    if(!d) continue;
+    const q = parseFloat((c[24]||'0').replace(/\./g,'').replace(',','.'))||0;
+    const vendCode = (c[20]||'').trim();
+    const vendName = (c[21]||'').trim();
+    const cli = (c[49]||'').trim().replace(/^0+/,'');
+    if(!vendName || !cli) continue;
+    if(!maxDate || d > maxDate) maxDate = d;
+    if(!vends[vendName]) vends[vendName] = {vol:{s10:0,s500:0,gas:0,hid:0},clientes:new Set(),dias:new Set()};
+    const v = vends[vendName];
+    v.vol[fam] += q;
+    v.clientes.add(cli);
+    const dk = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    v.dias.add(dk);
+  }
+  return {vends, maxDate};
+}
+
+/* ===== Dias úteis ===== */
+function effDays(year, month, through){
+  const last = new Date(year, month, 0).getDate();
+  const end = through || last;
+  let s = 0;
+  for(let d=1; d<=end; d++){
+    const dt = new Date(year, month-1, d);
+    const key = year+'-'+String(month).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    if(FERIADOS.has(key)) continue;
+    const w = dt.getDay();
+    if(w === 0) continue;
+    s += (w === 6) ? 0.5 : 1;
+  }
+  return s;
+}
+
+/* ===== Match vendedor ===== */
+function matchVend(csvName){
+  const n = vendNorm(csvName);
+  for(const v of VENDEDORES){
+    const vn = vendNorm(v.nome);
+    if(n === vn) return v;
+    if(n.includes(vn) || vn.includes(n)) return v;
+    if(vn.split(' ')[0] && n.startsWith(vn.split(' ')[0])) return v;
+  }
+  return null;
+}
+
+/* ===== Render ===== */
+const nf = n => Number(n).toLocaleString('pt-BR');
+const nf1 = n => Number(n).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});
+let DATA = null;
+let TAB = 'volume';
+
+function compute(txt){
+  const {vends, maxDate} = parseCSV(txt);
+  if(!maxDate) return null;
+  const Y = maxDate.getFullYear(), M = maxDate.getMonth()+1;
+  const maxDay = maxDate.getDate();
+  const effEl = effDays(Y, M, maxDay);
+  const effFull = DIAS_UTEIS;
+  const factor = effFull / effEl;
+  const restDays = effFull - effEl;
+
+  const result = [];
+  const agVol = {s10:0,s500:0,gas:0,hid:0};
+  let agCli = 0;
+
+  for(const v of VENDEDORES){
+    const csvEntry = Object.entries(vends).find(([name]) => matchVend(name) === v);
+    const real = csvEntry ? csvEntry[1] : {vol:{s10:0,s500:0,gas:0,hid:0},clientes:new Set(),dias:new Set()};
+    const volReal = real.vol.s10 + real.vol.s500 + real.vol.gas + real.vol.hid;
+    const proj = volReal * factor;
+    const pct = v.total > 0 ? (volReal / v.total * 100) : 0;
+    const pctProj = v.total > 0 ? (proj / v.total * 100) : 0;
+    const nCli = real.clientes.size;
+    const diasAtivos = real.dias.size;
+    const ritmo = effEl > 0 ? volReal / effEl : 0;
+    const necessario = restDays > 0 ? (v.total - volReal) / restDays : 0;
+    const gap = v.total - volReal;
+    const benchCli = BENCH_CLI[v.nome] || 0;
+    const benchExpected = benchCli > 0 ? Math.round(v.total / benchCli) : v.cli;
+
+    agVol.s10 += real.vol.s10;
+    agVol.s500 += real.vol.s500;
+    agVol.gas += real.vol.gas;
+    agVol.hid += real.vol.hid;
+    agCli += nCli;
+
+    result.push({
+      nome: v.nome, meta: v.total, metaProd:{s10:v.s10,s500:v.s500,gas:v.gas,hid:v.hid},
+      real: volReal, realProd: real.vol, proj, pct, pctProj, nCli, diasAtivos,
+      ritmo, necessario, gap, obs: v.obs, benchCli, benchExpected, cliMeta: v.cli
+    });
+  }
+
+  const totalMeta = VENDEDORES.reduce((s,v)=>s+v.total,0);
+  const totalReal = result.reduce((s,r)=>s+r.real,0);
+  const totalProj = totalReal * factor;
+
+  return {
+    results: result, maxDay, Y, M, effEl, effFull, restDays, factor,
+    totalMeta, totalReal, totalProj, agVol, agCli
+  };
+}
+
+function render(){
+  if(!DATA){return;}
+  const {results, maxDay, M, Y, effEl, effFull, restDays, totalMeta, totalReal, totalProj, agVol, agCli} = DATA;
+  const pctTotal = totalMeta > 0 ? totalReal/totalMeta*100 : 0;
+  const pctProj = totalMeta > 0 ? totalProj/totalMeta*100 : 0;
+  document.getElementById('subref').textContent = `Até ${String(maxDay).padStart(2,'0')}/${String(M).padStart(2,'0')}/${Y} · ${nf1(effEl)} de ${nf1(effFull)} dias úteis`;
+
+  let html = '';
+  // KPIs
+  html += `<div class="kpis">
+    <div class="kpi${pctProj>=95?' ok':pctProj>=80?'':' warn'}">
+      <div class="lab">Realizado</div>
+      <div class="big">${nf(Math.round(totalReal))}</div>
+      <div class="unit">m³ · ${nf1(pctTotal)}% da meta</div>
+    </div>
+    <div class="kpi${pctProj>=95?' ok':pctProj>=80?'':' warn'}">
+      <div class="lab">Projeção</div>
+      <div class="big">${nf(Math.round(totalProj))}</div>
+      <div class="unit">m³ · ${nf1(pctProj)}%</div>
+      <div class="sub">Meta: <b>${nf(totalMeta)}</b> m³</div>
+    </div>
+    <div class="kpi"><div class="lab">Clientes ativos</div><div class="big">${nf(agCli)}</div><div class="sub">Meta benchmark: <b>1.369</b></div></div>
+    <div class="kpi"><div class="lab">Dias restantes</div><div class="big">${nf1(restDays)}</div><div class="sub">de ${nf1(effFull)} úteis</div></div>
+  </div>`;
+
+  // Product summary
+  const totalMetaP = {s10:41477,s500:13924,gas:13499,hid:1100};
+  html += `<div class="card"><h3>Mix de Produtos — Realizado</h3><div class="prod-grid">
+    <div class="prod-item"><div class="pv">${nf(Math.round(agVol.s10))}</div><div class="pl">S10</div><div class="pl">${nf1(agVol.s10/totalMetaP.s10*100)}%</div></div>
+    <div class="prod-item"><div class="pv">${nf(Math.round(agVol.s500))}</div><div class="pl">S500</div><div class="pl">${nf1(agVol.s500/totalMetaP.s500*100)}%</div></div>
+    <div class="prod-item"><div class="pv">${nf(Math.round(agVol.gas))}</div><div class="pl">Gasolina</div><div class="pl">${nf1(agVol.gas/totalMetaP.gas*100)}%</div></div>
+    <div class="prod-item"><div class="pv">${nf(Math.round(agVol.hid))}</div><div class="pl">Hidratado</div><div class="pl">${nf1(agVol.hid/totalMetaP.hid*100)}%</div></div>
+  </div></div>`;
+
+  // Tabs
+  html += `<div class="tabs">
+    <div class="tab${TAB==='volume'?' on':''}" data-tab="volume">Volume</div>
+    <div class="tab${TAB==='clientes'?' on':''}" data-tab="clientes">Clientes</div>
+    <div class="tab${TAB==='produtos'?' on':''}" data-tab="produtos">Produtos</div>
+  </div>`;
+
+  // Sort
+  let sorted = [...results];
+  if(TAB==='volume') sorted.sort((a,b)=>b.pct-a.pct);
+  else if(TAB==='clientes') sorted.sort((a,b)=>b.nCli-a.nCli);
+  else sorted.sort((a,b)=>b.real-a.real);
+
+  html += `<div class="legend">
+    <span><span class="dot" style="background:var(--azul)"></span>Realizado</span>
+    <span><span class="dot" style="background:var(--laranja)"></span>Projeção</span>
+    <span>│ = Meta</span>
+  </div>`;
+
+  html += '<div class="rows">';
+  for(const r of sorted){
+    const pctCls = r.pctProj >= 95 ? 'g' : (r.pctProj >= 75 ? 'y' : 'r');
+    const fillW = Math.min(r.pct, 120);
+    const projW = Math.min(r.pctProj, 120);
+    const metaPos = Math.min(100, 100);
+
+    if(TAB === 'volume'){
+      html += `<div class="row">
+        <div class="rhead"><span class="rname">${r.nome}</span><span class="rpct ${pctCls}">${nf1(r.pct)}%</span></div>
+        <div class="rdetail">
+          <span><b>${nf(Math.round(r.real))}</b> de ${nf(r.meta)} m³</span>
+          <span>Proj: <b>${nf(Math.round(r.proj))}</b></span>
+          <span>Gap: <b>${nf(Math.round(r.gap))}</b></span>
+        </div>
+        <div class="track">
+          <div class="fill" style="width:${projW/1.2}%;background:var(--laranja);opacity:.35"></div>
+          <div class="fill" style="width:${fillW/1.2}%;background:var(--azul)"></div>
+          <div class="metaflag" style="left:${metaPos/1.2}%"></div>
+        </div>
+        <div class="rdetail" style="margin-top:4px">
+          <span>Ritmo: <b>${nf1(r.ritmo)}</b> m³/dia</span>
+          <span>Necessário: <b>${nf1(r.necessario)}</b> m³/dia</span>
+        </div>
+        ${r.obs ? '<div class="obs">'+r.obs+'</div>' : ''}
+      </div>`;
+    } else if(TAB === 'clientes'){
+      const cliPct = r.cliMeta > 0 ? (r.nCli/r.cliMeta*100) : 0;
+      const cliCls = cliPct >= 90 ? 'g' : (cliPct >= 70 ? 'y' : 'r');
+      html += `<div class="row">
+        <div class="rhead"><span class="rname">${r.nome}</span><span class="rpct ${cliCls}">${r.nCli} / ${r.cliMeta}</span></div>
+        <div class="rdetail">
+          <span>Clientes ativos: <b>${r.nCli}</b></span>
+          <span>Meta: <b>${r.cliMeta}</b></span>
+          <span>Cobertura: <b>${nf1(cliPct)}%</b></span>
+        </div>
+        <div class="track">
+          <div class="fill" style="width:${Math.min(cliPct,120)/1.2}%;background:var(--azul)"></div>
+          <div class="metaflag" style="left:${100/1.2}%"></div>
+        </div>
+        ${r.benchCli ? '<div class="rdetail" style="margin-top:4px"><span>Benchmark: <b>'+nf1(r.benchCli)+'</b> m³/cliente</span><span>Real: <b>'+nf1(r.nCli>0?r.real/r.nCli:0)+'</b> m³/cli</span></div>' : ''}
+      </div>`;
+    } else {
+      const prods = [
+        {k:'s10',l:'S10',meta:r.metaProd.s10,real:r.realProd.s10},
+        {k:'s500',l:'S500',meta:r.metaProd.s500,real:r.realProd.s500},
+        {k:'gas',l:'Gasolina',meta:r.metaProd.gas,real:r.realProd.gas},
+        {k:'hid',l:'Hidratado',meta:r.metaProd.hid,real:r.realProd.hid}
+      ];
+      html += `<div class="row"><div class="rhead"><span class="rname">${r.nome}</span><span class="rpct ${pctCls}">${nf1(r.pct)}%</span></div>`;
+      for(const p of prods){
+        if(p.meta <= 0) continue;
+        const pp = p.meta > 0 ? p.real/p.meta*100 : 0;
+        const pc = pp >= 80 ? 'var(--verde)' : (pp >= 50 ? 'var(--laranja)' : 'var(--vermelho)');
+        html += `<div class="rdetail" style="margin-top:4px"><span>${p.l}: <b>${nf(Math.round(p.real))}</b> / ${nf(p.meta)}</span><span style="color:${pc};font-weight:700">${nf1(pp)}%</span></div>`;
+      }
+      html += '</div>';
+    }
+  }
+  html += '</div>';
+
+  document.getElementById('content').innerHTML = html;
+
+  // Tab events
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', ()=>{
+    TAB = t.dataset.tab; render();
+  }));
+}
+
+/* ===== File loading ===== */
+document.getElementById('btnUp').addEventListener('click', ()=> document.getElementById('fileIn').click());
+document.getElementById('fileIn').addEventListener('change', e => {
+  const f = e.target.files[0]; if(!f) return;
+  flash('Processando…');
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      DATA = compute(r.result);
+      if(!DATA || !DATA.results.length){flash('Sem dados SP no arquivo.');return;}
+      render();
+      flash('Atualizado: até '+DATA.maxDay+'/'+String(DATA.M).padStart(2,'0')+'/'+DATA.Y+' · '+DATA.results.length+' vendedores');
+    } catch(err){flash('Erro: '+err.message);}
+  };
+  r.readAsText(f, 'iso-8859-1');
+  e.target.value = '';
+});
+
+let ft;
+function flash(m){const el=document.getElementById('flash');el.textContent=m;el.classList.add('on');clearTimeout(ft);ft=setTimeout(()=>el.classList.remove('on'),3000);}
+</script>
+</body>
+</html>
