@@ -8,6 +8,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Pacing Vendedores SP">
+<link rel="manifest" href="manifest-pacing.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>Pacing Vendedores — Royal FIC SP</title>
 <style>
 :root{
@@ -558,11 +560,18 @@ document.getElementById('fileIn').addEventListener('change', e => {
   const r = new FileReader();
   r.onload = () => {
     try {
-      DATA = compute(r.result);
+      const txt = r.result;
+      const {vends} = parseCSV(txt);
+      const csvNames = Object.keys(vends);
+      const unmatched = csvNames.filter(n=>!matchVend(n));
+      if(unmatched.length) console.warn('Vendedores não reconhecidos:',unmatched);
+      console.log('CSV vendedores encontrados:',csvNames);
+      DATA = compute(txt);
       if(!DATA || !DATA.results.length){flash('Sem dados SP no arquivo.');return;}
+      const matched = DATA.results.filter(r=>r.real>0).length;
       render();
-      flash('Atualizado: até '+DATA.maxDay+'/'+String(DATA.M).padStart(2,'0')+'/'+DATA.Y+' · '+DATA.results.length+' vendedores');
-    } catch(err){flash('Erro: '+err.message);}
+      flash(matched+' vendedores com dados · até '+DATA.maxDay+'/'+String(DATA.M).padStart(2,'0')+'/'+DATA.Y);
+    } catch(err){flash('Erro: '+err.message);console.error(err);}
   };
   r.readAsText(f, 'iso-8859-1');
   e.target.value = '';
@@ -570,6 +579,8 @@ document.getElementById('fileIn').addEventListener('change', e => {
 
 let ft;
 function flash(m){const el=document.getElementById('flash');el.textContent=m;el.classList.add('on');clearTimeout(ft);ft=setTimeout(()=>el.classList.remove('on'),3000);}
+
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});}
 </script>
 </body>
 </html>
