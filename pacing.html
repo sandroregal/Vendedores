@@ -102,9 +102,9 @@ footer{text-align:center;font-size:10.5px;color:var(--muted);margin-top:18px;pad
     </div>
   </header>
   <div id="content">
-    <div class="empty">
+    <div class="empty" id="emptyState">
       <h2>Sem dados carregados</h2>
-      <p>Toque em <b>⟳ Atualizar</b> e selecione o arquivo YVIEWCOPA (CSV) com os dados do mês corrente.</p>
+      <p id="emptyMsg">Verificando base do Copiloto…</p>
     </div>
   </div>
   <div style="margin:16px 14px 0;display:flex;gap:8px">
@@ -161,7 +161,26 @@ const BENCH_CLI = {
 };
 
 const SP_ESC = new Set(['FI09','FI10','FI13','FI22','FI27']);
-const MESA = new Set(['MESA REGIONAL SP','NEUSA']);
+
+/* ===== IndexedDB — lê mapeamento cliente→vendedor do Copiloto ===== */
+let EMB_VENDS = null; // array de nomes de vendedores por índice
+let EMB_HIST = null;  // {clientId: {vd: vendIndex, ...}}
+
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open('copilotoSP',1);r.onupgradeneeded=e=>e.target.result.createObjectStore('kv');r.onsuccess=e=>res(e.target.result);r.onerror=e=>rej(e);});}
+async function idbGet(k){try{const db=await idb();return await new Promise((res)=>{const t=db.transaction('kv').objectStore('kv').get(k);t.onsuccess=()=>res(t.result);t.onerror=()=>res(null);});}catch(e){return null;}}
+
+async function loadEMB(){
+  try{
+    const base = await idbGet('base');
+    if(base && base.emb && base.emb.vends && base.emb.hist){
+      EMB_VENDS = base.emb.vends;
+      EMB_HIST = base.emb.hist;
+      console.log('EMB carregado:',EMB_VENDS.length,'vendedores,',Object.keys(EMB_HIST).length,'clientes');
+      return true;
+    }
+  }catch(e){console.warn('Falha ao ler EMB:',e);}
+  return false;
+}
 
 /* ===== Parsear YVIEWCOPA ===== */
 function parseDate(s){
@@ -190,10 +209,18 @@ function classifySeg(band2){
   return 'Outros';
 }
 
+function resolveVend(cli){
+  if(!EMB_HIST || !EMB_VENDS) return null;
+  const h = EMB_HIST[cli];
+  if(!h) return null;
+  return EMB_VENDS[h.vd] || null;
+}
+
 function parseCSV(txt){
   const lines = txt.split(/\r?\n/);
   const vends = {};
   let maxDate = null;
+  let noEmb = 0;
   for(let i=1;i<lines.length;i++){
     const c = lines[i].split(';');
     if(c.length < 50) continue;
@@ -204,10 +231,15 @@ function parseCSV(txt){
     const d = parseDate(c[6]);
     if(!d) continue;
     const q = parseFloat((c[24]||'0').replace(/\./g,'').replace(',','.'))||0;
-    const vendCode = (c[20]||'').trim();
-    const vendName = (c[21]||'').trim();
     const cli = (c[49]||'').trim().replace(/^0+/,'');
-    if(!vendName || !cli) continue;
+    if(!cli) continue;
+    // Resolve vendedor via EMB (cliente→vendedor), fallback para c[21]
+    let vendName = resolveVend(cli);
+    if(!vendName){
+      vendName = (c[21]||'').trim();
+      noEmb++;
+    }
+    if(!vendName) continue;
     if(!maxDate || d > maxDate) maxDate = d;
     if(!vends[vendName]) vends[vendName] = {vol:{s10:0,s500:0,gas:0,hid:0},segs:{},clientes:new Set(),dias:new Set()};
     const v = vends[vendName];
@@ -218,7 +250,7 @@ function parseCSV(txt){
     const dk = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     v.dias.add(dk);
   }
-  return {vends, maxDate};
+  return {vends, maxDate, noEmb};
 }
 
 /* ===== Dias úteis ===== */
@@ -462,15 +494,22 @@ function render(){
     <div class="kpi"><div class="lab">Dias restantes</div><div class="big">${nf1(restDays)}</div><div class="sub">de ${nf1(effFull)} úteis</div></div>
   </div>`;
 
-  // Diagnostic: unmatched vendedores
-  if(DATA.unmatched && DATA.unmatched.length){
+  // Diagnostic: missing EMB or unmatched vendedores
+  if(DATA.noEMB){
     html += `<div class="card" style="border-left:4px solid var(--vermelho)">
-      <h3 style="color:var(--vermelho)">Vendedores não reconhecidos no CSV</h3>
-      <div class="rdetail" style="margin-bottom:6px"><span><b>${DATA.unmatched.length}</b> nomes · <b>${nf(Math.round(DATA.unmatchedVol))}</b> m³ não contabilizados</span></div>`;
-    for(const u of DATA.unmatched.slice(0,20)){
-      html += `<div class="rdetail" style="font-size:11px;margin-bottom:2px"><span style="font-family:monospace">${u.nome}</span><span>${nf(u.vol)} m³ · ${u.cli} cli</span></div>`;
-    }
-    html += '<div style="font-size:10.5px;color:var(--muted);margin-top:6px">Envie esta tela para ajustar o matching de nomes.</div></div>';
+      <h3 style="color:var(--vermelho)">Base do Copiloto não encontrada</h3>
+      <div style="font-size:12px;color:var(--muted);line-height:1.5">
+        O Pacing usa o mapeamento cliente→vendedor do <b>Copiloto Comercial SP</b>.<br><br>
+        <b>1.</b> Abra o <a href="./index.html" style="color:var(--azul);font-weight:700">Copiloto SP</a> e carregue a base (historico_SP.json)<br>
+        <b>2.</b> Depois volte aqui e carregue o YVIEWCOPA novamente
+      </div>
+    </div>`;
+  } else if(DATA.unmatched && DATA.unmatched.length && DATA.unmatchedVol > 100){
+    html += `<div class="card" style="border-left:4px solid var(--laranja)">
+      <h3 style="color:var(--laranja)">Clientes sem vendedor mapeado</h3>
+      <div class="rdetail" style="margin-bottom:6px"><span><b>${nf(Math.round(DATA.unmatchedVol))}</b> m³ de clientes novos (sem histórico)</span></div>
+      <div style="font-size:10.5px;color:var(--muted)">Clientes novos que não existem na base do Copiloto.</div>
+    </div>`;
   }
 
   // Product summary
@@ -581,25 +620,23 @@ document.getElementById('fileIn').addEventListener('change', e => {
   const f = e.target.files[0]; if(!f) return;
   flash('Processando…');
   const r = new FileReader();
-  r.onload = () => {
+  r.onload = async () => {
     try {
+      if(!EMB_HIST) await loadEMB();
       const txt = r.result;
       const {vends} = parseCSV(txt);
       const csvNames = Object.keys(vends);
       const unmatched = csvNames.filter(n=>!matchVend(n));
       const unmatchedVol = unmatched.reduce((s,n)=>{const e=vends[n];return s+e.vol.s10+e.vol.s500+e.vol.gas+e.vol.hid;},0);
-      if(unmatched.length){
-        console.warn('Vendedores não reconhecidos:',unmatched);
-        console.table(unmatched.map(n=>{const e=vends[n];return{nome:n,vol:Math.round(e.vol.s10+e.vol.s500+e.vol.gas+e.vol.hid),cli:e.clientes.size};}));
-      }
       DATA = compute(txt);
       if(!DATA || !DATA.results.length){flash('Sem dados SP no arquivo.');return;}
       DATA.unmatched = unmatched.map(n=>{const e=vends[n];return{nome:n,vol:Math.round(e.vol.s10+e.vol.s500+e.vol.gas+e.vol.hid),cli:e.clientes.size};}).sort((a,b)=>b.vol-a.vol);
       DATA.unmatchedVol = unmatchedVol;
+      DATA.noEMB = !EMB_HIST;
       const matched = DATA.results.filter(r=>r.real>0).length;
       render();
-      if(unmatched.length) flash(matched+' matched · '+unmatched.length+' não reconhecidos ('+nf(Math.round(unmatchedVol))+' m³)');
-      else flash(matched+' vendedores com dados · até '+DATA.maxDay+'/'+String(DATA.M).padStart(2,'0')+'/'+DATA.Y);
+      if(!EMB_HIST) flash('Sem base do Copiloto — abra o Copiloto SP primeiro');
+      else flash(matched+' vendedores · até '+DATA.maxDay+'/'+String(DATA.M).padStart(2,'0')+'/'+DATA.Y);
     } catch(err){flash('Erro: '+err.message);console.error(err);}
   };
   r.readAsText(f, 'iso-8859-1');
@@ -610,6 +647,19 @@ let ft;
 function flash(m){const el=document.getElementById('flash');el.textContent=m;el.classList.add('on');clearTimeout(ft);ft=setTimeout(()=>el.classList.remove('on'),3000);}
 
 if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});}
+
+(async function boot(){
+  const ok = await loadEMB();
+  const msg = document.getElementById('emptyMsg');
+  if(!msg) return;
+  if(ok){
+    msg.innerHTML = 'Base do Copiloto carregada (' + Object.keys(EMB_HIST).length + ' clientes mapeados).<br>Toque em <b>⟳ Atualizar</b> e selecione o YVIEWCOPA.';
+  } else {
+    msg.innerHTML = '<b style="color:var(--vermelho)">Base do Copiloto não encontrada.</b><br><br>'
+      + '1. Abra o <a href="./index.html" style="color:var(--azul);font-weight:700">Copiloto SP</a> e carregue a base<br>'
+      + '2. Volte aqui e carregue o YVIEWCOPA';
+  }
+})();
 </script>
 </body>
 </html>
