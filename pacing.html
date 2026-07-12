@@ -159,12 +159,22 @@ function parseDate(s){
 function artFam(code){
   code=(code||'').trim().slice(-3);
   if(code==='101'||code==='102'||code==='103') return 'gas';
-  if(code==='147'||code==='148') return 's10';
+  if(code==='146'||code==='147'||code==='148') return 's10';
   if(code==='140'||code==='141') return 's500';
   if(code==='109') return 'hid';
   return null;
 }
 function vendNorm(s){return (s||'').trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
+
+function classifySeg(band2){
+  const s = (band2||'').trim().toUpperCase();
+  if(s.includes('BANDEIRA BRANCA')) return 'Bandeira Branca';
+  if(s.includes('CONSUMIDOR FINAL')) return 'Consumidor Final';
+  if(s.includes('BANDEIRADO')) return 'Bandeirado';
+  if(s.includes('USINA')) return 'Usinas';
+  if(s==='CONGENERE'||s==='N.D'||s==='N/D'||s==='ND'||s.includes('CONGENERE')) return 'Congênere';
+  return 'Outros';
+}
 
 function parseCSV(txt){
   const lines = txt.split(/\r?\n/);
@@ -185,9 +195,11 @@ function parseCSV(txt){
     const cli = (c[49]||'').trim().replace(/^0+/,'');
     if(!vendName || !cli) continue;
     if(!maxDate || d > maxDate) maxDate = d;
-    if(!vends[vendName]) vends[vendName] = {vol:{s10:0,s500:0,gas:0,hid:0},clientes:new Set(),dias:new Set()};
+    if(!vends[vendName]) vends[vendName] = {vol:{s10:0,s500:0,gas:0,hid:0},segs:{},clientes:new Set(),dias:new Set()};
     const v = vends[vendName];
     v.vol[fam] += q;
+    const seg = classifySeg(c[23]);
+    v.segs[seg] = (v.segs[seg]||0) + q;
     v.clientes.add(cli);
     const dk = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     v.dias.add(dk);
@@ -240,6 +252,113 @@ const nf1 = n => Number(n).toLocaleString('pt-BR',{minimumFractionDigits:1,maxim
 let DATA = null;
 let TAB = 'volume';
 
+function renderAnalise(results, data){
+  const {factor, effEl} = data;
+  let h = '';
+
+  // --- 1. PRODUTO: o que vai bem / o que não vai ---
+  const prodKeys = ['s10','s500','gas','hid'];
+  const prodLabels = {s10:'Diesel S10',s500:'Diesel S500',gas:'Gasolina',hid:'Hidratado'};
+  const prodBem = [], prodMal = [];
+  for(const pk of prodKeys){
+    const vendsBem = [], vendsMal = [];
+    for(const r of results){
+      if(r.metaProd[pk] <= 0) continue;
+      const pct = r.realProd[pk] / r.metaProd[pk] * 100;
+      const projPct = pct * factor;
+      if(projPct >= 95) vendsBem.push({nome:r.nome, pct:projPct, real:r.realProd[pk], meta:r.metaProd[pk]});
+      else if(projPct < 80) vendsMal.push({nome:r.nome, pct:projPct, real:r.realProd[pk], meta:r.metaProd[pk]});
+    }
+    vendsBem.sort((a,b)=>b.pct-a.pct);
+    vendsMal.sort((a,b)=>a.pct-b.pct);
+    if(vendsBem.length) prodBem.push({prod:prodLabels[pk], vends:vendsBem});
+    if(vendsMal.length) prodMal.push({prod:prodLabels[pk], vends:vendsMal});
+  }
+
+  h += '<div class="card"><h3>Produto — Indo Bem</h3>';
+  if(prodBem.length === 0) h += '<div class="rdetail">Nenhum vendedor projetando ≥95% em produto específico</div>';
+  for(const g of prodBem){
+    h += `<div style="margin-top:8px"><b style="font-size:12px;color:var(--verde)">${g.prod}</b>`;
+    h += '<div style="margin-top:4px">';
+    for(const v of g.vends.slice(0,5)){
+      h += `<div class="rdetail"><span>${v.nome}</span><span style="color:var(--verde);font-weight:700">${nf1(v.pct)}%</span><span>${nf(Math.round(v.real))} / ${nf(v.meta)} m³</span></div>`;
+    }
+    h += '</div></div>';
+  }
+  h += '</div>';
+
+  h += '<div class="card"><h3>Produto — Atenção</h3>';
+  if(prodMal.length === 0) h += '<div class="rdetail">Todos os vendedores projetando ≥80%</div>';
+  for(const g of prodMal){
+    h += `<div style="margin-top:8px"><b style="font-size:12px;color:var(--vermelho)">${g.prod}</b>`;
+    h += '<div style="margin-top:4px">';
+    for(const v of g.vends.slice(0,5)){
+      h += `<div class="rdetail"><span>${v.nome}</span><span style="color:var(--vermelho);font-weight:700">${nf1(v.pct)}%</span><span>${nf(Math.round(v.real))} / ${nf(v.meta)} m³</span></div>`;
+    }
+    h += '</div></div>';
+  }
+  h += '</div>';
+
+  // --- 2. SEGMENTO: distribuição por vendedor ---
+  const allSegs = {};
+  for(const r of results){ for(const s of Object.keys(r.segs)) allSegs[s] = (allSegs[s]||0) + r.segs[s]; }
+  const segNames = Object.keys(allSegs).sort((a,b)=>allSegs[b]-allSegs[a]);
+  const totalSeg = Object.values(allSegs).reduce((a,b)=>a+b,0);
+
+  h += '<div class="card"><h3>Segmento — Distribuição Regional</h3>';
+  if(segNames.length === 0){
+    h += '<div class="rdetail">Sem dados de segmento</div>';
+  } else {
+    for(const seg of segNames){
+      const pct = totalSeg > 0 ? allSegs[seg]/totalSeg*100 : 0;
+      h += `<div class="benchrow"><span class="bn">${seg}</span><span class="bv">${nf(Math.round(allSegs[seg]))} m³</span><span class="bl">${nf1(pct)}%</span></div>`;
+    }
+  }
+  h += '</div>';
+
+  // Segmento por vendedor — quem concentra vs diversifica
+  h += '<div class="card"><h3>Segmento — Por Vendedor</h3>';
+  const segVends = results.filter(r=>r.real>0).map(r=>{
+    const total = Object.values(r.segs).reduce((a,b)=>a+b,0);
+    const top = Object.entries(r.segs).sort((a,b)=>b[1]-a[1])[0];
+    return {nome:r.nome, total, topSeg:top?top[0]:'—', topPct:top&&total>0?top[1]/total*100:0, segs:r.segs};
+  }).sort((a,b)=>b.topPct-a.topPct);
+  for(const sv of segVends){
+    const entries = Object.entries(sv.segs).sort((a,b)=>b[1]-a[1]);
+    const segStr = entries.slice(0,3).map(([s,v])=>`${s} ${nf1(sv.total>0?v/sv.total*100:0)}%`).join(' · ');
+    h += `<div class="rdetail" style="margin-bottom:6px"><span><b>${sv.nome}</b></span><span style="font-size:10.5px">${segStr}</span></div>`;
+  }
+  h += '</div>';
+
+  // --- 3. CLIENTES: o que vai bem / o que não vai ---
+  const cliBem = [], cliMal = [];
+  for(const r of results){
+    if(r.cliMeta <= 0) continue;
+    const cliPct = r.nCli / r.cliMeta * 100;
+    const elPct = effEl / data.effFull * 100;
+    if(cliPct >= elPct * 0.9) cliBem.push({nome:r.nome, nCli:r.nCli, meta:r.cliMeta, pct:cliPct});
+    else if(cliPct < elPct * 0.7) cliMal.push({nome:r.nome, nCli:r.nCli, meta:r.cliMeta, pct:cliPct});
+  }
+  cliBem.sort((a,b)=>b.pct-a.pct);
+  cliMal.sort((a,b)=>a.pct-b.pct);
+
+  h += '<div class="card"><h3>Clientes — Indo Bem</h3>';
+  if(cliBem.length === 0) h += '<div class="rdetail">Nenhum vendedor no ritmo esperado de clientes</div>';
+  for(const c of cliBem){
+    h += `<div class="rdetail" style="margin-bottom:4px"><span><b>${c.nome}</b></span><span style="color:var(--verde);font-weight:700">${c.nCli} / ${c.meta}</span><span>${nf1(c.pct)}%</span></div>`;
+  }
+  h += '</div>';
+
+  h += '<div class="card"><h3>Clientes — Atenção</h3>';
+  if(cliMal.length === 0) h += '<div class="rdetail">Todos os vendedores com cobertura adequada</div>';
+  for(const c of cliMal){
+    h += `<div class="rdetail" style="margin-bottom:4px"><span><b>${c.nome}</b></span><span style="color:var(--vermelho);font-weight:700">${c.nCli} / ${c.meta}</span><span>${nf1(c.pct)}%</span></div>`;
+  }
+  h += '</div>';
+
+  return h;
+}
+
 function compute(txt){
   const {vends, maxDate} = parseCSV(txt);
   if(!maxDate) return null;
@@ -256,7 +375,7 @@ function compute(txt){
 
   for(const v of VENDEDORES){
     const csvEntry = Object.entries(vends).find(([name]) => matchVend(name) === v);
-    const real = csvEntry ? csvEntry[1] : {vol:{s10:0,s500:0,gas:0,hid:0},clientes:new Set(),dias:new Set()};
+    const real = csvEntry ? csvEntry[1] : {vol:{s10:0,s500:0,gas:0,hid:0},segs:{},clientes:new Set(),dias:new Set()};
     const volReal = real.vol.s10 + real.vol.s500 + real.vol.gas + real.vol.hid;
     const proj = volReal * factor;
     const pct = v.total > 0 ? (volReal / v.total * 100) : 0;
@@ -277,7 +396,7 @@ function compute(txt){
 
     result.push({
       nome: v.nome, meta: v.total, metaProd:{s10:v.s10,s500:v.s500,gas:v.gas,hid:v.hid},
-      real: volReal, realProd: real.vol, proj, pct, pctProj, nCli, diasAtivos,
+      real: volReal, realProd: real.vol, segs: real.segs, proj, pct, pctProj, nCli, diasAtivos,
       ritmo, necessario, gap, obs: v.obs, benchCli, benchExpected, cliMeta: v.cli
     });
   }
@@ -331,80 +450,85 @@ function render(){
     <div class="tab${TAB==='volume'?' on':''}" data-tab="volume">Volume</div>
     <div class="tab${TAB==='clientes'?' on':''}" data-tab="clientes">Clientes</div>
     <div class="tab${TAB==='produtos'?' on':''}" data-tab="produtos">Produtos</div>
+    <div class="tab${TAB==='analise'?' on':''}" data-tab="analise">Análise</div>
   </div>`;
 
-  // Sort
-  let sorted = [...results];
-  if(TAB==='volume') sorted.sort((a,b)=>b.pct-a.pct);
-  else if(TAB==='clientes') sorted.sort((a,b)=>b.nCli-a.nCli);
-  else sorted.sort((a,b)=>b.real-a.real);
+  if(TAB === 'analise'){
+    html += renderAnalise(results, DATA);
+  } else {
+    // Sort
+    let sorted = [...results];
+    if(TAB==='volume') sorted.sort((a,b)=>b.pct-a.pct);
+    else if(TAB==='clientes') sorted.sort((a,b)=>b.nCli-a.nCli);
+    else sorted.sort((a,b)=>b.real-a.real);
 
-  html += `<div class="legend">
-    <span><span class="dot" style="background:var(--azul)"></span>Realizado</span>
-    <span><span class="dot" style="background:var(--laranja)"></span>Projeção</span>
-    <span>│ = Meta</span>
-  </div>`;
+    html += `<div class="legend">
+      <span><span class="dot" style="background:var(--azul)"></span>Realizado</span>
+      <span><span class="dot" style="background:var(--laranja)"></span>Projeção</span>
+      <span>│ = Meta</span>
+    </div>`;
 
-  html += '<div class="rows">';
-  for(const r of sorted){
-    const pctCls = r.pctProj >= 95 ? 'g' : (r.pctProj >= 75 ? 'y' : 'r');
-    const fillW = Math.min(r.pct, 120);
-    const projW = Math.min(r.pctProj, 120);
-    const metaPos = Math.min(100, 100);
+    html += '<div class="rows">';
+    for(const r of sorted){
+      const pctCls = r.pctProj >= 95 ? 'g' : (r.pctProj >= 75 ? 'y' : 'r');
+      const fillW = Math.min(r.pct, 120);
+      const projW = Math.min(r.pctProj, 120);
+      const metaPos = Math.min(100, 100);
 
-    if(TAB === 'volume'){
-      html += `<div class="row">
-        <div class="rhead"><span class="rname">${r.nome}</span><span class="rpct ${pctCls}">${nf1(r.pct)}%</span></div>
-        <div class="rdetail">
-          <span><b>${nf(Math.round(r.real))}</b> de ${nf(r.meta)} m³</span>
-          <span>Proj: <b>${nf(Math.round(r.proj))}</b></span>
-          <span>Gap: <b>${nf(Math.round(r.gap))}</b></span>
-        </div>
-        <div class="track">
-          <div class="fill" style="width:${projW/1.2}%;background:var(--laranja);opacity:.35"></div>
-          <div class="fill" style="width:${fillW/1.2}%;background:var(--azul)"></div>
-          <div class="metaflag" style="left:${metaPos/1.2}%"></div>
-        </div>
-        <div class="rdetail" style="margin-top:4px">
-          <span>Ritmo: <b>${nf1(r.ritmo)}</b> m³/dia</span>
-          <span>Necessário: <b>${nf1(r.necessario)}</b> m³/dia</span>
-        </div>
-        ${r.obs ? '<div class="obs">'+r.obs+'</div>' : ''}
-      </div>`;
-    } else if(TAB === 'clientes'){
-      const cliPct = r.cliMeta > 0 ? (r.nCli/r.cliMeta*100) : 0;
-      const cliCls = cliPct >= 90 ? 'g' : (cliPct >= 70 ? 'y' : 'r');
-      html += `<div class="row">
-        <div class="rhead"><span class="rname">${r.nome}</span><span class="rpct ${cliCls}">${r.nCli} / ${r.cliMeta}</span></div>
-        <div class="rdetail">
-          <span>Clientes ativos: <b>${r.nCli}</b></span>
-          <span>Meta: <b>${r.cliMeta}</b></span>
-          <span>Cobertura: <b>${nf1(cliPct)}%</b></span>
-        </div>
-        <div class="track">
-          <div class="fill" style="width:${Math.min(cliPct,120)/1.2}%;background:var(--azul)"></div>
-          <div class="metaflag" style="left:${100/1.2}%"></div>
-        </div>
-        ${r.benchCli ? '<div class="rdetail" style="margin-top:4px"><span>Benchmark: <b>'+nf1(r.benchCli)+'</b> m³/cliente</span><span>Real: <b>'+nf1(r.nCli>0?r.real/r.nCli:0)+'</b> m³/cli</span></div>' : ''}
-      </div>`;
-    } else {
-      const prods = [
-        {k:'s10',l:'S10',meta:r.metaProd.s10,real:r.realProd.s10},
-        {k:'s500',l:'S500',meta:r.metaProd.s500,real:r.realProd.s500},
-        {k:'gas',l:'Gasolina',meta:r.metaProd.gas,real:r.realProd.gas},
-        {k:'hid',l:'Hidratado',meta:r.metaProd.hid,real:r.realProd.hid}
-      ];
-      html += `<div class="row"><div class="rhead"><span class="rname">${r.nome}</span><span class="rpct ${pctCls}">${nf1(r.pct)}%</span></div>`;
-      for(const p of prods){
-        if(p.meta <= 0) continue;
-        const pp = p.meta > 0 ? p.real/p.meta*100 : 0;
-        const pc = pp >= 80 ? 'var(--verde)' : (pp >= 50 ? 'var(--laranja)' : 'var(--vermelho)');
-        html += `<div class="rdetail" style="margin-top:4px"><span>${p.l}: <b>${nf(Math.round(p.real))}</b> / ${nf(p.meta)}</span><span style="color:${pc};font-weight:700">${nf1(pp)}%</span></div>`;
+      if(TAB === 'volume'){
+        html += `<div class="row">
+          <div class="rhead"><span class="rname">${r.nome}</span><span class="rpct ${pctCls}">${nf1(r.pct)}%</span></div>
+          <div class="rdetail">
+            <span><b>${nf(Math.round(r.real))}</b> de ${nf(r.meta)} m³</span>
+            <span>Proj: <b>${nf(Math.round(r.proj))}</b></span>
+            <span>Gap: <b>${nf(Math.round(r.gap))}</b></span>
+          </div>
+          <div class="track">
+            <div class="fill" style="width:${projW/1.2}%;background:var(--laranja);opacity:.35"></div>
+            <div class="fill" style="width:${fillW/1.2}%;background:var(--azul)"></div>
+            <div class="metaflag" style="left:${metaPos/1.2}%"></div>
+          </div>
+          <div class="rdetail" style="margin-top:4px">
+            <span>Ritmo: <b>${nf1(r.ritmo)}</b> m³/dia</span>
+            <span>Necessário: <b>${nf1(r.necessario)}</b> m³/dia</span>
+          </div>
+          ${r.obs ? '<div class="obs">'+r.obs+'</div>' : ''}
+        </div>`;
+      } else if(TAB === 'clientes'){
+        const cliPct = r.cliMeta > 0 ? (r.nCli/r.cliMeta*100) : 0;
+        const cliCls = cliPct >= 90 ? 'g' : (cliPct >= 70 ? 'y' : 'r');
+        html += `<div class="row">
+          <div class="rhead"><span class="rname">${r.nome}</span><span class="rpct ${cliCls}">${r.nCli} / ${r.cliMeta}</span></div>
+          <div class="rdetail">
+            <span>Clientes ativos: <b>${r.nCli}</b></span>
+            <span>Meta: <b>${r.cliMeta}</b></span>
+            <span>Cobertura: <b>${nf1(cliPct)}%</b></span>
+          </div>
+          <div class="track">
+            <div class="fill" style="width:${Math.min(cliPct,120)/1.2}%;background:var(--azul)"></div>
+            <div class="metaflag" style="left:${100/1.2}%"></div>
+          </div>
+          ${r.benchCli ? '<div class="rdetail" style="margin-top:4px"><span>Benchmark: <b>'+nf1(r.benchCli)+'</b> m³/cliente</span><span>Real: <b>'+nf1(r.nCli>0?r.real/r.nCli:0)+'</b> m³/cli</span></div>' : ''}
+        </div>`;
+      } else if(TAB === 'produtos') {
+        const prods = [
+          {k:'s10',l:'S10',meta:r.metaProd.s10,real:r.realProd.s10},
+          {k:'s500',l:'S500',meta:r.metaProd.s500,real:r.realProd.s500},
+          {k:'gas',l:'Gasolina',meta:r.metaProd.gas,real:r.realProd.gas},
+          {k:'hid',l:'Hidratado',meta:r.metaProd.hid,real:r.realProd.hid}
+        ];
+        html += `<div class="row"><div class="rhead"><span class="rname">${r.nome}</span><span class="rpct ${pctCls}">${nf1(r.pct)}%</span></div>`;
+        for(const p of prods){
+          if(p.meta <= 0) continue;
+          const pp = p.meta > 0 ? p.real/p.meta*100 : 0;
+          const pc = pp >= 80 ? 'var(--verde)' : (pp >= 50 ? 'var(--laranja)' : 'var(--vermelho)');
+          html += `<div class="rdetail" style="margin-top:4px"><span>${p.l}: <b>${nf(Math.round(p.real))}</b> / ${nf(p.meta)}</span><span style="color:${pc};font-weight:700">${nf1(pp)}%</span></div>`;
+        }
+        html += '</div>';
       }
-      html += '</div>';
     }
+    html += '</div>';
   }
-  html += '</div>';
 
   document.getElementById('content').innerHTML = html;
 
