@@ -89,6 +89,7 @@ footer{text-align:center;font-size:10.5px;color:var(--muted);margin-top:18px;pad
 .empty{text-align:center;padding:40px 20px;color:var(--muted)}
 .empty h2{color:var(--ink);font-size:18px;margin-bottom:8px}
 .obs{font-size:10.5px;color:var(--muted);font-style:italic;margin-top:2px}
+.cobre-tag{font-size:10.5px;color:var(--verde);margin-top:4px;padding:3px 6px;background:rgba(14,138,92,.08);border-radius:4px;border-left:2px solid var(--verde)}
 </style>
 </head>
 <body>
@@ -135,23 +136,23 @@ const DIAS_UTEIS = 24.0; // seg-sex=1, sab=0.5, dom=0; feriado 09/07 removido
 const FERIADOS = new Set(['2026-07-09']);
 
 const VENDEDORES = [
-  {nome:'Kelly',     s10:7814, s500:1801, gas:1706, hid:532,  cli:152, fer:0,  obs:'cobre Valter (férias)'},
-  {nome:'Luís',      s10:4302, s500:934,  gas:1552, hid:0,    cli:118, fer:10, obs:'férias 10d ef.'},
-  {nome:'Amauri',    s10:3272, s500:2063, gas:722,  hid:9,    cli:101, fer:0,  obs:null},
-  {nome:'Jeferson',  s10:3023, s500:1070, gas:1860, hid:44,   cli:138, fer:0,  obs:null},
-  {nome:'Jéssica',   s10:3835, s500:882,  gas:1175, hid:0,    cli:114, fer:0,  obs:'cobre Luís (férias)'},
-  {nome:'Sérgio Elias', s10:2387, s500:2242, gas:438, hid:86, cli:122, fer:0,  obs:null},
-  {nome:'Rogério',   s10:2753, s500:928,  gas:1083, hid:40,   cli:88,  fer:0,  obs:'cobre S.Cardoso (férias)'},
-  {nome:'Sérgio Cardoso', s10:3133, s500:554, gas:788, hid:120, cli:60, fer:5,  obs:'férias 5d ef.'},
-  {nome:'Valter',    s10:3320, s500:637,  gas:362,  hid:195,  cli:36,  fer:16, obs:'férias 16d ef.'},
-  {nome:'Driele',    s10:1874, s500:743,  gas:787,  hid:36,   cli:132, fer:0,  obs:'cobre Silvana (férias)'},
-  {nome:'Michelly',  s10:1429, s500:375,  gas:1480, hid:9,    cli:91,  fer:0,  obs:null},
-  {nome:'Taciana',   s10:1399, s500:837,  gas:435,  hid:0,    cli:105, fer:0,  obs:null},
-  {nome:'ST01',      s10:1258, s500:57,   gas:487,  hid:0,    cli:48,  fer:0,  obs:null},
-  {nome:'Silvana',   s10:691,  s500:354,  gas:457,  hid:25,   cli:42,  fer:11, obs:'férias 11d ef.'},
-  {nome:'Roberto',   s10:880,  s500:422,  gas:21,   hid:0,    cli:16,  fer:0,  obs:null},
-  {nome:'Neusa',     s10:58,   s500:14,   gas:79,   hid:2,    cli:3,   fer:11, obs:'férias 11d ef.'},
-  {nome:'Tatyana',   s10:49,   s500:11,   gas:67,   hid:2,    cli:3,   fer:0,  obs:'cobre Neusa (férias)'}
+  {nome:'Kelly',     s10:7814, s500:1801, gas:1706, hid:532,  cli:152, fer:0,  cobre:'Valter',         obs:'cobre Valter (férias)'},
+  {nome:'Luís',      s10:4302, s500:934,  gas:1552, hid:0,    cli:118, fer:10, cobre:null,             obs:'férias 10d ef.'},
+  {nome:'Amauri',    s10:3272, s500:2063, gas:722,  hid:9,    cli:101, fer:0,  cobre:null,             obs:null},
+  {nome:'Jeferson',  s10:3023, s500:1070, gas:1860, hid:44,   cli:138, fer:0,  cobre:null,             obs:null},
+  {nome:'Jéssica',   s10:3835, s500:882,  gas:1175, hid:0,    cli:114, fer:0,  cobre:'Luís',           obs:'cobre Luís (férias)'},
+  {nome:'Sérgio Elias', s10:2387, s500:2242, gas:438, hid:86, cli:122, fer:0,  cobre:null,             obs:null},
+  {nome:'Rogério',   s10:2753, s500:928,  gas:1083, hid:40,   cli:88,  fer:0,  cobre:'Sérgio Cardoso', obs:'cobre S.Cardoso (férias)'},
+  {nome:'Sérgio Cardoso', s10:3133, s500:554, gas:788, hid:120, cli:60, fer:5,  cobre:null,             obs:'férias 5d ef.'},
+  {nome:'Valter',    s10:3320, s500:637,  gas:362,  hid:195,  cli:36,  fer:16, cobre:null,             obs:'férias 16d ef.'},
+  {nome:'Driele',    s10:1874, s500:743,  gas:787,  hid:36,   cli:132, fer:0,  cobre:'Silvana',        obs:'cobre Silvana (férias)'},
+  {nome:'Michelly',  s10:1429, s500:375,  gas:1480, hid:9,    cli:91,  fer:0,  cobre:null,             obs:null},
+  {nome:'Taciana',   s10:1399, s500:837,  gas:435,  hid:0,    cli:105, fer:0,  cobre:null,             obs:null},
+  {nome:'ST01',      s10:1258, s500:57,   gas:487,  hid:0,    cli:48,  fer:0,  cobre:null,             obs:null},
+  {nome:'Silvana',   s10:691,  s500:354,  gas:457,  hid:25,   cli:42,  fer:11, cobre:null,             obs:'férias 11d ef.'},
+  {nome:'Roberto',   s10:880,  s500:422,  gas:21,   hid:0,    cli:16,  fer:0,  cobre:null,             obs:null},
+  {nome:'Neusa',     s10:58,   s500:14,   gas:79,   hid:2,    cli:3,   fer:11, cobre:null,             obs:'férias 11d ef.'},
+  {nome:'Tatyana',   s10:49,   s500:11,   gas:67,   hid:2,    cli:3,   fer:0,  cobre:'Neusa',          obs:'cobre Neusa (férias)'}
 ];
 VENDEDORES.forEach(v => v.total = v.s10 + v.s500 + v.gas + v.hid);
 
@@ -430,11 +431,17 @@ function compute(txt){
     agVol.hid += real.vol.hid;
     agCli += nCli;
 
+    let cobreInfo = null;
+    if(v.cobre){
+      const cob = VENDEDORES.find(x => x.nome === v.cobre);
+      if(cob) cobreInfo = {nome: cob.nome, cli: cob.cli, vol: cob.total, fer: cob.fer || 0};
+    }
+
     result.push({
       nome: v.nome, meta: v.total, metaProd:{s10:v.s10,s500:v.s500,gas:v.gas,hid:v.hid},
       real: volReal, realProd: real.vol, segs: real.segs, proj, pct, pctProj, nCli, diasAtivos,
       ritmo, necessario, gap, obs: v.obs, benchCli, benchExpected, cliMeta: v.cli,
-      fer: v.fer || 0, vEffFull, vRestDays
+      fer: v.fer || 0, vEffFull, vRestDays, cobreInfo
     });
   }
 
@@ -515,6 +522,12 @@ function render(){
 
       if(TAB === 'volume'){
         const ferTag = r.fer > 0 ? `<span style="font-size:10px;color:var(--laranja)">🏖 ${r.fer}d férias · ${nf1(r.vEffFull)}d úteis</span>` : '';
+        let tagLine = '';
+        if(r.cobreInfo){
+          tagLine = `<div class="cobre-tag">🤝 Cobre ${r.cobreInfo.nome} (${r.cobreInfo.fer}d) — oportunidade: ${r.cobreInfo.cli} clientes · ${nf(r.cobreInfo.vol)} m³ de carteira</div>`;
+        } else if(r.obs){
+          tagLine = '<div class="obs">'+r.obs+'</div>';
+        }
         html += `<div class="row">
           <div class="rhead"><span class="rname">${r.nome}${ferTag?' '+ferTag:''}</span><span style="display:flex;align-items:center;gap:8px"><span class="rpct ${pctCls}">${nf1(r.pct)}%</span><button class="share-btn" onclick="shareVend('${r.nome.replace(/'/g,"\\'")}')">📤</button></span></div>
           <div class="rdetail">
@@ -532,7 +545,7 @@ function render(){
             <span>Necessário: <b>${nf1(r.necessario)}</b> m³/dia</span>
             ${r.fer > 0 ? '<span>Dias restantes: <b>'+nf1(r.vRestDays)+'</b></span>' : ''}
           </div>
-          ${r.obs ? '<div class="obs">'+r.obs+'</div>' : ''}
+          ${tagLine}
         </div>`;
       } else if(TAB === 'clientes'){
         const cliPct = r.cliMeta > 0 ? (r.nCli/r.cliMeta*100) : 0;
@@ -697,7 +710,19 @@ function shareVend(nome){
   if(r.realProd.gas > 0) prods.push(`Gas ${nf(Math.round(r.realProd.gas))}`);
   if(r.realProd.hid > 0) prods.push(`Hid ${nf(Math.round(r.realProd.hid))}`);
   if(prods.length) msg += `🛢 Mix: ${prods.join(' · ')} m³\n`;
-  msg += `👥 Clientes: ${r.nCli} ativos (meta: ${r.cliMeta})\n\n`;
+  msg += `👥 Clientes: ${r.nCli} ativos (meta: ${r.cliMeta})\n`;
+
+  // Insight de cobertura
+  if(r.cobreInfo){
+    const c = r.cobreInfo;
+    msg += `\n` + pick([
+      `🤝 *Oportunidade:* Você cobre ${c.nome} (${c.fer}d férias) — carteira de ${c.cli} clientes e ${nf(c.vol)} m³. Aproveita pra expandir!`,
+      `🤝 *Cobertura ${c.nome}:* ${c.cli} clientes disponíveis com potencial de ${nf(c.vol)} m³. Boa chance de turbinar o resultado!`,
+      `🤝 Com a carteira do ${c.nome} (${c.cli} clientes · ${nf(c.vol)} m³), você tem uma alavanca extra pra fechar o mês forte.`,
+      `🤝 *Extra:* ${c.nome} tá de férias ${c.fer}d — os ${c.cli} clientes da carteira dele são oportunidade pra você.`
+    ]) + `\n`;
+  }
+  msg += `\n`;
 
   // Estímulo final — totalmente aleatório
   if(r.pctProj >= 120){
