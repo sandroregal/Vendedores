@@ -104,7 +104,7 @@ footer{text-align:center;font-size:10.5px;color:var(--muted);margin-top:18px;pad
   <div id="content">
     <div class="empty" id="emptyState">
       <h2>Sem dados carregados</h2>
-      <p id="emptyMsg">Verificando base do Copiloto…</p>
+      <p id="emptyMsg">Toque em <b>⟳ Atualizar</b> e selecione o arquivo YVIEWCOPA (CSV) com os dados do mês corrente.</p>
     </div>
   </div>
   <nav style="display:flex;justify-content:center;gap:24px;margin:16px 14px 0;padding:10px 0">
@@ -161,25 +161,7 @@ const BENCH_CLI = {
 
 const SP_ESC = new Set(['FI09','FI10','FI13','FI22','FI27']);
 
-/* ===== IndexedDB — lê mapeamento cliente→vendedor do Copiloto ===== */
-let EMB_VENDS = null; // array de nomes de vendedores por índice
-let EMB_HIST = null;  // {clientId: {vd: vendIndex, ...}}
-
-function idb(){return new Promise((res,rej)=>{const r=indexedDB.open('copilotoSP',1);r.onupgradeneeded=e=>e.target.result.createObjectStore('kv');r.onsuccess=e=>res(e.target.result);r.onerror=e=>rej(e);});}
-async function idbGet(k){try{const db=await idb();return await new Promise((res)=>{const t=db.transaction('kv').objectStore('kv').get(k);t.onsuccess=()=>res(t.result);t.onerror=()=>res(null);});}catch(e){return null;}}
-
-async function loadEMB(){
-  try{
-    const base = await idbGet('base');
-    if(base && base.emb && base.emb.vends && base.emb.hist){
-      EMB_VENDS = base.emb.vends;
-      EMB_HIST = base.emb.hist;
-      console.log('EMB carregado:',EMB_VENDS.length,'vendedores,',Object.keys(EMB_HIST).length,'clientes');
-      return true;
-    }
-  }catch(e){console.warn('Falha ao ler EMB:',e);}
-  return false;
-}
+const MESA_SKIP = new Set(['MESA REGIONAL SP']);
 
 /* ===== Parsear YVIEWCOPA ===== */
 function parseDate(s){
@@ -209,18 +191,10 @@ function classifySeg(band2){
   return 'Outros';
 }
 
-function resolveVend(cli){
-  if(!EMB_HIST || !EMB_VENDS) return null;
-  const h = EMB_HIST[cli];
-  if(!h) return null;
-  return EMB_VENDS[h.vd] || null;
-}
-
 function parseCSV(txt){
   const lines = txt.split(/\r?\n/);
   const vends = {};
   let maxDate = null;
-  let noEmb = 0;
   for(let i=1;i<lines.length;i++){
     const c = lines[i].split(';');
     if(c.length < 50) continue;
@@ -233,13 +207,9 @@ function parseCSV(txt){
     const q = parseFloat((c[24]||'0').replace(/\./g,'').replace(',','.'))||0;
     const cli = (c[49]||'').trim().replace(/^0+/,'');
     if(!cli) continue;
-    // Resolve vendedor via EMB (cliente→vendedor), fallback para c[21]
-    let vendName = resolveVend(cli);
-    if(!vendName){
-      vendName = (c[21]||'').trim();
-      noEmb++;
-    }
-    if(!vendName) continue;
+    // Vendedor está na coluna c[9] (Denominação)
+    let vendName = (c[9]||'').trim();
+    if(!vendName || MESA_SKIP.has(vendName.toUpperCase())) continue;
     if(!maxDate || d > maxDate) maxDate = d;
     if(!vends[vendName]) vends[vendName] = {vol:{s10:0,s500:0,gas:0,hid:0},segs:{},clientes:new Set(),dias:new Set()};
     const v = vends[vendName];
@@ -250,7 +220,7 @@ function parseCSV(txt){
     const dk = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     v.dias.add(dk);
   }
-  return {vends, maxDate, noEmb};
+  return {vends, maxDate};
 }
 
 /* ===== Dias úteis ===== */
@@ -495,18 +465,6 @@ function render(){
     <div class="kpi"><div class="lab">Dias restantes</div><div class="big">${nf1(restDays)}</div><div class="sub">de ${nf1(effFull)} úteis</div></div>
   </div>`;
 
-  // Diagnostic: missing EMB or unmatched vendedores
-  if(DATA.noEMB){
-    html += `<div class="card" style="border-left:4px solid var(--vermelho)">
-      <h3 style="color:var(--vermelho)">Base do Copiloto não encontrada</h3>
-      <div style="font-size:12px;color:var(--muted);line-height:1.5">
-        O Pacing usa o mapeamento cliente→vendedor do <b>Copiloto Comercial SP</b>.<br><br>
-        <b>1.</b> Abra o <a href="./index.html" style="color:var(--azul);font-weight:700">Copiloto SP</a> e carregue a base (historico_SP.json)<br>
-        <b>2.</b> Depois volte aqui e carregue o YVIEWCOPA novamente
-      </div>
-    </div>`;
-  }
-
   // Product summary
   const totalMetaP = {s10:41477,s500:13924,gas:13499,hid:1100};
   html += `<div class="card"><h3>Mix de Produtos — Realizado</h3><div class="prod-grid">
@@ -529,7 +487,7 @@ function render(){
   } else {
     // Sort
     let sorted = [...results];
-    if(TAB==='volume') sorted.sort((a,b)=>b.pct-a.pct);
+    if(TAB==='volume') sorted.sort((a,b)=>b.real-a.real);
     else if(TAB==='clientes') sorted.sort((a,b)=>b.nCli-a.nCli);
     else sorted.sort((a,b)=>b.real-a.real);
 
@@ -615,23 +573,14 @@ document.getElementById('fileIn').addEventListener('change', e => {
   const f = e.target.files[0]; if(!f) return;
   flash('Processando…');
   const r = new FileReader();
-  r.onload = async () => {
+  r.onload = () => {
     try {
-      if(!EMB_HIST) await loadEMB();
       const txt = r.result;
-      const {vends} = parseCSV(txt);
-      const csvNames = Object.keys(vends);
-      const unmatched = csvNames.filter(n=>!matchVend(n));
-      const unmatchedVol = unmatched.reduce((s,n)=>{const e=vends[n];return s+e.vol.s10+e.vol.s500+e.vol.gas+e.vol.hid;},0);
       DATA = compute(txt);
       if(!DATA || !DATA.results.length){flash('Sem dados SP no arquivo.');return;}
-      DATA.unmatched = unmatched.map(n=>{const e=vends[n];return{nome:n,vol:Math.round(e.vol.s10+e.vol.s500+e.vol.gas+e.vol.hid),cli:e.clientes.size};}).sort((a,b)=>b.vol-a.vol);
-      DATA.unmatchedVol = unmatchedVol;
-      DATA.noEMB = !EMB_HIST;
       const matched = DATA.results.filter(r=>r.real>0).length;
       render();
-      if(!EMB_HIST) flash('Sem base do Copiloto — abra o Copiloto SP primeiro');
-      else flash(matched+' vendedores · até '+DATA.maxDay+'/'+String(DATA.M).padStart(2,'0')+'/'+DATA.Y);
+      flash(matched+' vendedores · até '+DATA.maxDay+'/'+String(DATA.M).padStart(2,'0')+'/'+DATA.Y);
     } catch(err){flash('Erro: '+err.message);console.error(err);}
   };
   r.readAsText(f, 'iso-8859-1');
@@ -643,18 +592,6 @@ function flash(m){const el=document.getElementById('flash');el.textContent=m;el.
 
 if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});}
 
-(async function boot(){
-  const ok = await loadEMB();
-  const msg = document.getElementById('emptyMsg');
-  if(!msg) return;
-  if(ok){
-    msg.innerHTML = 'Base do Copiloto carregada (' + Object.keys(EMB_HIST).length + ' clientes mapeados).<br>Toque em <b>⟳ Atualizar</b> e selecione o YVIEWCOPA.';
-  } else {
-    msg.innerHTML = '<b style="color:var(--vermelho)">Base do Copiloto não encontrada.</b><br><br>'
-      + '1. Abra o <a href="./index.html" style="color:var(--azul);font-weight:700">Copiloto SP</a> e carregue a base<br>'
-      + '2. Volte aqui e carregue o YVIEWCOPA';
-  }
-})();
 </script>
 </body>
 </html>
