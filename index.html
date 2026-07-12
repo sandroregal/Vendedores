@@ -612,12 +612,12 @@ function crossVendedor(){
   SHARE=mkShareCross('Lacunas de '+S.xvend+(S.selSeg?' · '+S.selSeg:''),fl.slice(0,60));
   return sel+head+chips+`<div class="secttl flt">Clientes (${nf(fl.length)}) ${shareBtn()}</div>`+fl.map(xRow).join('')+ex;
 }
-function fasePacing(){const meta=[['S10',38158],['S500',12810],['Gasolina',12420],['Hidratado',1012]];const tot=meta.reduce((s,m)=>s+m[1],0);
+function fasePacing(){const meta=[['S10',41477],['S500',13924],['Gasolina',13499],['Hidratado',1100]];const tot=meta.reduce((s,m)=>s+m[1],0);
   const mc=meta.map(m=>`<div class="mc"><div class="p">${m[0]}</div><div class="q">${nf(m[1])}</div><div class="u">m³ · ${nf1(m[1]/tot*100)}% do mix</div></div>`).join('');
   return `<div class="fase"><div class="ic">📈</div><div class="tag">Fase 3</div><h2>Pacing de Meta</h2>
   <p>Seu atingimento e ritmo necessário/dia, lendo a meta pela Equação de Ouro — gap em alcance vs. valor.</p>
-  <div class="what"><h4>Meta de referência — SP, jun/2026 (m³)</h4><div class="mgrid">${mc}</div>
-  <p class="src" style="margin-top:11px">Total ${nf(tot)} m³ · diesel ${nf1((38158+12810)/tot*100)}%.</p></div>
+  <div class="what"><h4>Meta de referência — SP, jul/2026 (m³)</h4><div class="mgrid">${mc}</div>
+  <p class="src" style="margin-top:11px">Total ${nf(tot)} m³ · diesel ${nf1((41477+13924)/tot*100)}%.</p></div>
   <p class="src">Volume = Clientes × Frequência × Ticket · Atingimento = acumulado ÷ meta.</p></div>`;}
 
 /* ===== empty state ===== */
