@@ -459,6 +459,7 @@ function compute(txt){
     });
   }
 
+  result.sort((a,b) => b.real - a.real);
   const totalMeta = VENDEDORES.reduce((s,v)=>s+v.total,0);
   const totalReal = result.reduce((s,r)=>s+r.real,0);
   const totalProj = totalReal * factor;
