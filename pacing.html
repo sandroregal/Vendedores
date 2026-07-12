@@ -689,36 +689,18 @@ async function shareVend(nome){
   msg += `Clientes ativos: ${r.nCli} de ${r.cliMeta}\n`;
   msg += '\n';
 
-  // --- Bloco 4: Ciclo de Clientes (Copiloto) ---
+  // --- Bloco 4: Ciclo de Clientes (Copiloto) — só resumo ---
   const hasRet = retFila.length > 0;
   const hasCross = crossCli.length > 0;
   if(hasRet || hasCross){
-    msg += `*OPORTUNIDADES DA CARTEIRA*\n`;
+    msg += `*CARTEIRA*\n`;
     if(hasRet){
-      const retQuente = retFila.filter(o=>o.zona==='quente').length;
-      const retAlerta = retFila.filter(o=>o.zona==='alerta').length;
-      const retPerda = retFila.filter(o=>o.zona==='perda').length;
       const retVol = Math.round(retFila.reduce((s,o)=>s+o.volm,0));
-      msg += `Retomada: ${retFila.length} clientes atrasados (~${nf(retVol)} m³/mes em jogo)`;
-      const zonas = [];
-      if(retQuente) zonas.push(`${retQuente} quentes`);
-      if(retAlerta) zonas.push(`${retAlerta} alerta`);
-      if(retPerda) zonas.push(`${retPerda} risco`);
-      if(zonas.length) msg += ` — ${zonas.join(', ')}`;
-      msg += '\n';
-      const topRet = retFila.sort((a,b)=>b.pri-a.pri).slice(0,3);
-      for(const o of topRet){
-        msg += `  > Cli ${o.cli} (${o.cidade}) — parado ${o.lapso}d, ~${nf(o.volm)} m³/mes\n`;
-      }
+      msg += `Retomada: ${retFila.length} clientes atrasados (~${nf(retVol)} m³/mes em jogo)\n`;
     }
     if(hasCross){
       const crossVol = Math.round(crossCli.reduce((s,o)=>s+o.pri,0));
-      msg += `Cross-sell: ${crossCli.length} clientes com cesta incompleta (~${nf(crossVol)} m³ potencial)\n`;
-      const topCross = crossCli.sort((a,b)=>b.pri-a.pri).slice(0,3);
-      for(const o of topCross){
-        const falta = o.gaps.map(g=>g.p).join(', ');
-        msg += `  > Cli ${o.cli} (${o.cidade}) — falta ${falta}, ~${nf(o.pri)} m³\n`;
-      }
+      msg += `Cross-sell: ${crossCli.length} com cesta incompleta (~${nf(crossVol)} m³ potencial)\n`;
     }
     msg += '\n';
   }
@@ -763,20 +745,20 @@ async function shareVend(nome){
       `O mes ainda esta aberto, ${p}. Identifica os volumes pendentes e vai pra cima.`,
       `Precisa apertar o ritmo. Clientes parados e cestas incompletas sao o caminho.`,
       `${p}, da pra buscar. Concentra energia nos maiores e organiza a semana.`,
-      `Momento de ajuste. Mapeia as entregas de maior impacto e executa.`,
       `Ritmo precisa subir — mas esta ao alcance. Foca e acelera.`,
-      `${p}, a meta pede mais intensidade. Vamos alinhar as prioridades?`
+      `${p}, a meta pede mais intensidade. Ajusta a rota e executa.`,
+      `Momento de ajuste. Mapeia os maiores e ataca essa semana.`
     ]);
   } else {
     msg += pick([
-      `${p}, o numero exige reacao. Vamos conversar e montar um plano de acao.`,
+      `${p}, o numero exige reacao imediata. Prioriza os maiores e age hoje.`,
       `Situacao pede intensidade, ${p}. Foco total nos clientes de maior potencial.`,
-      `Momento critico — precisa de uma virada. Vamos alinhar a estrategia?`,
       `${p}, resultado abaixo do esperado. Identifica onde tem volume e age agora.`,
       `O gap esta grande, mas o mes nao acabou. Prioriza e executa com urgencia.`,
-      `${p}, precisa de acao imediata. Conta comigo pra definir os proximos passos.`,
-      `Numero exige atencao, ${p}. Vamos mapear a carteira e montar um plano?`,
-      `Hora de reagir. Foca nos inativos e nos maiores — cada visita conta agora.`
+      `${p}, precisa acelerar. Revisa a carteira e concentra nos que dao volume.`,
+      `Hora de reagir, ${p}. Cada visita a partir de agora precisa ser cirurgica.`,
+      `Numero abaixo, ${p}. Separa os 10 maiores inativos e ataca nessa ordem.`,
+      `${p}, a meta precisa de acao. Organiza a semana pelos clientes de maior impacto.`
     ]);
   }
 
