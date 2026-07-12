@@ -107,8 +107,20 @@ footer{text-align:center;font-size:10.5px;color:var(--muted);margin-top:18px;pad
       <p>Toque em <b>⟳ Atualizar</b> e selecione o arquivo YVIEWCOPA (CSV) com os dados do mês corrente.</p>
     </div>
   </div>
+  <div style="margin:16px 14px 0;display:flex;gap:8px">
+    <a href="./index.html" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+      background:var(--azul);color:#fff;text-decoration:none;padding:12px;border-radius:12px;
+      font-size:12px;font-weight:700;box-shadow:0 2px 8px rgba(14,76,137,.2)">
+      Copiloto SP
+    </a>
+    <a href="https://sandroregal.github.io/mes-corrente/" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+      background:var(--azul);color:#fff;text-decoration:none;padding:12px;border-radius:12px;
+      font-size:12px;font-weight:700;box-shadow:0 2px 8px rgba(14,76,137,.2)">
+      Mes-Corrente
+    </a>
+  </div>
   <footer>
-    Royal FIC · Inteligência Comercial · Pacing Equipe SP · <b>v1</b><br>
+    Royal FIC · Inteligência Comercial · Pacing Equipe SP · <b>v2</b><br>
     Uso interno · dados ficam apenas no aparelho.
   </footer>
 </div>
@@ -450,6 +462,17 @@ function render(){
     <div class="kpi"><div class="lab">Dias restantes</div><div class="big">${nf1(restDays)}</div><div class="sub">de ${nf1(effFull)} úteis</div></div>
   </div>`;
 
+  // Diagnostic: unmatched vendedores
+  if(DATA.unmatched && DATA.unmatched.length){
+    html += `<div class="card" style="border-left:4px solid var(--vermelho)">
+      <h3 style="color:var(--vermelho)">Vendedores não reconhecidos no CSV</h3>
+      <div class="rdetail" style="margin-bottom:6px"><span><b>${DATA.unmatched.length}</b> nomes · <b>${nf(Math.round(DATA.unmatchedVol))}</b> m³ não contabilizados</span></div>`;
+    for(const u of DATA.unmatched.slice(0,20)){
+      html += `<div class="rdetail" style="font-size:11px;margin-bottom:2px"><span style="font-family:monospace">${u.nome}</span><span>${nf(u.vol)} m³ · ${u.cli} cli</span></div>`;
+    }
+    html += '<div style="font-size:10.5px;color:var(--muted);margin-top:6px">Envie esta tela para ajustar o matching de nomes.</div></div>';
+  }
+
   // Product summary
   const totalMetaP = {s10:41477,s500:13924,gas:13499,hid:1100};
   html += `<div class="card"><h3>Mix de Produtos — Realizado</h3><div class="prod-grid">
@@ -564,13 +587,19 @@ document.getElementById('fileIn').addEventListener('change', e => {
       const {vends} = parseCSV(txt);
       const csvNames = Object.keys(vends);
       const unmatched = csvNames.filter(n=>!matchVend(n));
-      if(unmatched.length) console.warn('Vendedores não reconhecidos:',unmatched);
-      console.log('CSV vendedores encontrados:',csvNames);
+      const unmatchedVol = unmatched.reduce((s,n)=>{const e=vends[n];return s+e.vol.s10+e.vol.s500+e.vol.gas+e.vol.hid;},0);
+      if(unmatched.length){
+        console.warn('Vendedores não reconhecidos:',unmatched);
+        console.table(unmatched.map(n=>{const e=vends[n];return{nome:n,vol:Math.round(e.vol.s10+e.vol.s500+e.vol.gas+e.vol.hid),cli:e.clientes.size};}));
+      }
       DATA = compute(txt);
       if(!DATA || !DATA.results.length){flash('Sem dados SP no arquivo.');return;}
+      DATA.unmatched = unmatched.map(n=>{const e=vends[n];return{nome:n,vol:Math.round(e.vol.s10+e.vol.s500+e.vol.gas+e.vol.hid),cli:e.clientes.size};}).sort((a,b)=>b.vol-a.vol);
+      DATA.unmatchedVol = unmatchedVol;
       const matched = DATA.results.filter(r=>r.real>0).length;
       render();
-      flash(matched+' vendedores com dados · até '+DATA.maxDay+'/'+String(DATA.M).padStart(2,'0')+'/'+DATA.Y);
+      if(unmatched.length) flash(matched+' matched · '+unmatched.length+' não reconhecidos ('+nf(Math.round(unmatchedVol))+' m³)');
+      else flash(matched+' vendedores com dados · até '+DATA.maxDay+'/'+String(DATA.M).padStart(2,'0')+'/'+DATA.Y);
     } catch(err){flash('Erro: '+err.message);console.error(err);}
   };
   r.readAsText(f, 'iso-8859-1');
