@@ -661,7 +661,10 @@ async function shareVend(nome){
   const pad = (s,n) => String(s).padStart(n,' ');
 
   // --- Tabela unica compacta ---
+  const vDias = r.fer > 0 ? r.vEffFull : effFull;
+  const ferDias = r.fer > 0 ? ` fer ${r.fer}d` : '';
   msg += '```\n';
+  msg += `Dias ${pad(nf1(effEl),6)} de ${nf1(vDias)}${ferDias}\n`;
   msg += `Real ${pad(nf(Math.round(r.real)),6)} m³ ${pad(nf1(r.pct),6)}%\n`;
   msg += `Meta ${pad(nf(r.meta),6)} m³\n`;
   if(r.gap > 0){
@@ -670,18 +673,16 @@ async function shareVend(nome){
     msg += `Acim ${pad(nf(Math.round(Math.abs(r.gap))),6)} m³\n`;
   }
   msg += `Proj ${pad(nf(Math.round(r.proj)),6)} m³ ${pad(nf1(r.pctProj),6)}%\n`;
+  msg += `Ritm ${pad(nf1(r.ritmo),6)} m³/d\n`;
   if(r.gap > 0){
-    msg += `Ritm ${pad(nf1(r.ritmo),6)} m³/d ${pad(nf1(r.necessario),6)} nec\n`;
-  } else {
-    msg += `Ritm ${pad(nf1(r.ritmo),6)} m³/dia\n`;
+    msg += `Nec  ${pad(nf1(r.necessario),6)} m³/d\n`;
   }
   msg += `─────────────────────\n`;
   const mp = [{k:'s10',l:'S10'},{k:'s500',l:'S500'},{k:'gas',l:'Gas'},{k:'hid',l:'Hid'}];
   mp.filter(x=>r.realProd[x.k]>0).forEach(x => {
     msg += `${x.l.padEnd(4)} ${pad(nf(Math.round(r.realProd[x.k])),6)} m³\n`;
   });
-  const ferNote = r.fer > 0 ? ` (fer ${r.fer}d)` : '';
-  msg += `Cli  ${pad(r.nCli,6)} de ${r.cliMeta}${ferNote}\n`;
+  msg += `Cli  ${pad(r.nCli,6)} de ${r.cliMeta}\n`;
   msg += '```\n\n';
 
   // --- Carteira (Copiloto) ---
