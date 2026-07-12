@@ -671,7 +671,7 @@ async function shareVend(nome){
   }
   msg += `Proj ${pad(nf(Math.round(r.proj)),6)} m³ ${pad(nf1(r.pctProj),6)}%\n`;
   if(r.gap > 0){
-    msg += `Ritm ${pad(nf1(r.ritmo),6)} Nec ${nf1(r.necessario)}\n`;
+    msg += `Ritm ${pad(nf1(r.ritmo),6)} m³/d ${pad(nf1(r.necessario),6)} nec\n`;
   } else {
     msg += `Ritm ${pad(nf1(r.ritmo),6)} m³/dia\n`;
   }
