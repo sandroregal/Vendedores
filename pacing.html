@@ -205,6 +205,7 @@ function classifySeg(band2){
   if(s.includes('CONSUMIDOR FINAL')) return 'Consumidor Final';
   if(s.includes('BANDEIRADO')) return 'Bandeirado';
   if(s.includes('USINA')) return 'Usinas';
+  if(s.includes('TRR') || s.includes('RETALHISTA')) return 'TRR';
   if(s==='CONGENERE'||s==='N.D'||s==='N/D'||s==='ND'||s.includes('CONGENERE')) return 'Congênere';
   return 'Outros';
 }
@@ -503,12 +504,6 @@ function render(){
         <b>1.</b> Abra o <a href="./index.html" style="color:var(--azul);font-weight:700">Copiloto SP</a> e carregue a base (historico_SP.json)<br>
         <b>2.</b> Depois volte aqui e carregue o YVIEWCOPA novamente
       </div>
-    </div>`;
-  } else if(DATA.unmatched && DATA.unmatched.length && DATA.unmatchedVol > 100){
-    html += `<div class="card" style="border-left:4px solid var(--laranja)">
-      <h3 style="color:var(--laranja)">Clientes sem vendedor mapeado</h3>
-      <div class="rdetail" style="margin-bottom:6px"><span><b>${nf(Math.round(DATA.unmatchedVol))}</b> m³ de clientes novos (sem histórico)</span></div>
-      <div style="font-size:10.5px;color:var(--muted)">Clientes novos que não existem na base do Copiloto.</div>
     </div>`;
   }
 
