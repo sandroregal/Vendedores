@@ -60,6 +60,8 @@ header{background:linear-gradient(135deg,var(--azul),var(--azul2));color:#fff;
 .rpct.g{background:#d4edda;color:#0f5132}
 .rpct.y{background:#fff3cd;color:#664d03}
 .rpct.r{background:#f8d7da;color:#842029}
+.share-btn{background:none;border:1px solid var(--linha);border-radius:6px;padding:2px 6px;font-size:14px;cursor:pointer;line-height:1;opacity:.7;transition:opacity .2s}
+.share-btn:active{opacity:1;transform:scale(.92)}
 .rdetail{display:flex;gap:10px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
 .rdetail b{color:var(--ink)}
 .track{position:relative;height:12px;background:#eef2f6;border-radius:6px;overflow:visible;margin-top:6px}
@@ -506,7 +508,7 @@ function render(){
 
       if(TAB === 'volume'){
         html += `<div class="row">
-          <div class="rhead"><span class="rname">${r.nome}</span><span class="rpct ${pctCls}">${nf1(r.pct)}%</span></div>
+          <div class="rhead"><span class="rname">${r.nome}</span><span style="display:flex;align-items:center;gap:8px"><span class="rpct ${pctCls}">${nf1(r.pct)}%</span><button class="share-btn" onclick="shareVend('${r.nome.replace(/'/g,"\\'")}')">📤</button></span></div>
           <div class="rdetail">
             <span><b>${nf(Math.round(r.real))}</b> de ${nf(r.meta)} m³</span>
             <span>Proj: <b>${nf(Math.round(r.proj))}</b></span>
@@ -527,7 +529,7 @@ function render(){
         const cliPct = r.cliMeta > 0 ? (r.nCli/r.cliMeta*100) : 0;
         const cliCls = cliPct >= 90 ? 'g' : (cliPct >= 70 ? 'y' : 'r');
         html += `<div class="row">
-          <div class="rhead"><span class="rname">${r.nome}</span><span class="rpct ${cliCls}">${r.nCli} / ${r.cliMeta}</span></div>
+          <div class="rhead"><span class="rname">${r.nome}</span><span style="display:flex;align-items:center;gap:8px"><span class="rpct ${cliCls}">${r.nCli} / ${r.cliMeta}</span><button class="share-btn" onclick="shareVend('${r.nome.replace(/'/g,"\\'")}')">📤</button></span></div>
           <div class="rdetail">
             <span>Clientes ativos: <b>${r.nCli}</b></span>
             <span>Meta: <b>${r.cliMeta}</b></span>
@@ -546,7 +548,7 @@ function render(){
           {k:'gas',l:'Gasolina',meta:r.metaProd.gas,real:r.realProd.gas},
           {k:'hid',l:'Hidratado',meta:r.metaProd.hid,real:r.realProd.hid}
         ];
-        html += `<div class="row"><div class="rhead"><span class="rname">${r.nome}</span><span class="rpct ${pctCls}">${nf1(r.pct)}%</span></div>`;
+        html += `<div class="row"><div class="rhead"><span class="rname">${r.nome}</span><span style="display:flex;align-items:center;gap:8px"><span class="rpct ${pctCls}">${nf1(r.pct)}%</span><button class="share-btn" onclick="shareVend('${r.nome.replace(/'/g,"\\'")}')">📤</button></span></div>`;
         for(const p of prods){
           if(p.meta <= 0) continue;
           const pp = p.meta > 0 ? p.real/p.meta*100 : 0;
@@ -565,6 +567,25 @@ function render(){
   document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', ()=>{
     TAB = t.dataset.tab; render();
   }));
+}
+
+/* ===== WhatsApp share ===== */
+function shareVend(nome){
+  if(!DATA) return;
+  const r = DATA.results.find(x=>x.nome===nome);
+  if(!r) return;
+  const {maxDay, M, Y, effEl, effFull, factor} = DATA;
+  const dt = `${String(maxDay).padStart(2,'0')}/${String(M).padStart(2,'0')}/${Y}`;
+  const status = r.pctProj >= 95 ? '✅' : (r.pctProj >= 75 ? '⚠️' : '🔴');
+  let msg = `📊 *Pacing SP — ${r.nome}*\n`;
+  msg += `Até ${dt} (${nf1(effEl)} de ${nf1(effFull)} dias úteis)\n\n`;
+  msg += `${status} *Realizado: ${nf(Math.round(r.real))} m³* (${nf1(r.pct)}% da meta)\n`;
+  msg += `Projeção: ${nf(Math.round(r.proj))} m³ (${nf1(r.pctProj)}%)\n`;
+  msg += `Meta: ${nf(r.meta)} m³ · Gap: ${nf(Math.round(r.gap))} m³\n\n`;
+  msg += `S10: ${nf(Math.round(r.realProd.s10))} · S500: ${nf(Math.round(r.realProd.s500))} · Gas: ${nf(Math.round(r.realProd.gas))} · Hid: ${nf(Math.round(r.realProd.hid))}\n`;
+  msg += `Clientes: ${r.nCli} ativos (meta: ${r.cliMeta})\n`;
+  msg += `Ritmo: ${nf1(r.ritmo)} m³/dia · Necessário: ${nf1(r.necessario)} m³/dia`;
+  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
 }
 
 /* ===== File loading ===== */
