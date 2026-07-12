@@ -253,53 +253,55 @@ let DATA = null;
 let TAB = 'volume';
 
 function renderAnalise(results, data){
-  const {factor, effEl} = data;
+  const {factor, effEl, effFull, totalMeta, totalReal} = data;
+  const pctTime = effEl / effFull * 100;
   let h = '';
 
-  // --- 1. PRODUTO: o que vai bem / o que não vai ---
+  // --- 1. PRODUTO — visão consolidada do time ---
   const prodKeys = ['s10','s500','gas','hid'];
   const prodLabels = {s10:'Diesel S10',s500:'Diesel S500',gas:'Gasolina',hid:'Hidratado'};
-  const prodBem = [], prodMal = [];
+  const totalMetaP = {s10:41477,s500:13924,gas:13499,hid:1100};
+
+  h += '<div class="card"><h3>Produto — Desempenho do Time</h3>';
   for(const pk of prodKeys){
-    const vendsBem = [], vendsMal = [];
-    for(const r of results){
-      if(r.metaProd[pk] <= 0) continue;
-      const pct = r.realProd[pk] / r.metaProd[pk] * 100;
-      const projPct = pct * factor;
-      if(projPct >= 95) vendsBem.push({nome:r.nome, pct:projPct, real:r.realProd[pk], meta:r.metaProd[pk]});
-      else if(projPct < 80) vendsMal.push({nome:r.nome, pct:projPct, real:r.realProd[pk], meta:r.metaProd[pk]});
-    }
-    vendsBem.sort((a,b)=>b.pct-a.pct);
-    vendsMal.sort((a,b)=>a.pct-b.pct);
-    if(vendsBem.length) prodBem.push({prod:prodLabels[pk], vends:vendsBem});
-    if(vendsMal.length) prodMal.push({prod:prodLabels[pk], vends:vendsMal});
-  }
+    const real = results.reduce((s,r)=>s+r.realProd[pk],0);
+    const meta = totalMetaP[pk];
+    const pct = meta > 0 ? real/meta*100 : 0;
+    const proj = real * factor;
+    const projPct = meta > 0 ? proj/meta*100 : 0;
+    const gap = meta - real;
+    const status = projPct >= 95 ? 'g' : (projPct >= 80 ? 'y' : 'r');
+    const statusColor = status==='g' ? 'var(--verde)' : (status==='y' ? 'var(--laranja)' : 'var(--vermelho)');
+    const icon = status==='g' ? '&#9650;' : (status==='r' ? '&#9660;' : '&#9679;');
+    const nOnTrack = results.filter(r=>r.metaProd[pk]>0 && (r.realProd[pk]/r.metaProd[pk]*100*factor)>=95).length;
+    const nBehind = results.filter(r=>r.metaProd[pk]>0 && (r.realProd[pk]/r.metaProd[pk]*100*factor)<80).length;
+    const nTotal = results.filter(r=>r.metaProd[pk]>0).length;
 
-  h += '<div class="card"><h3>Produto — Indo Bem</h3>';
-  if(prodBem.length === 0) h += '<div class="rdetail">Nenhum vendedor projetando ≥95% em produto específico</div>';
-  for(const g of prodBem){
-    h += `<div style="margin-top:8px"><b style="font-size:12px;color:var(--verde)">${g.prod}</b>`;
-    h += '<div style="margin-top:4px">';
-    for(const v of g.vends.slice(0,5)){
-      h += `<div class="rdetail"><span>${v.nome}</span><span style="color:var(--verde);font-weight:700">${nf1(v.pct)}%</span><span>${nf(Math.round(v.real))} / ${nf(v.meta)} m³</span></div>`;
-    }
-    h += '</div></div>';
+    h += `<div style="padding:10px 0;${pk!=='s10'?'border-top:1px solid var(--line);':''}">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <b style="font-size:13px">${prodLabels[pk]}</b>
+        <span class="rpct ${status}">${nf1(projPct)}%</span>
+      </div>
+      <div class="rdetail" style="margin-top:4px">
+        <span>Real: <b>${nf(Math.round(real))}</b></span>
+        <span>Meta: <b>${nf(meta)}</b> m³</span>
+        <span>Gap: <b>${nf(Math.round(gap))}</b></span>
+      </div>
+      <div class="track" style="margin-top:6px">
+        <div class="fill" style="width:${Math.min(projPct,120)/1.2}%;background:var(--laranja);opacity:.35"></div>
+        <div class="fill" style="width:${Math.min(pct,120)/1.2}%;background:${statusColor}"></div>
+        <div class="metaflag" style="left:${100/1.2}%"></div>
+      </div>
+      <div class="rdetail" style="margin-top:4px;font-size:10.5px">
+        <span style="color:var(--verde)">${nOnTrack} no ritmo</span>
+        <span style="color:var(--vermelho)">${nBehind} atrasados</span>
+        <span>de ${nTotal} vendedores</span>
+      </div>
+    </div>`;
   }
   h += '</div>';
 
-  h += '<div class="card"><h3>Produto — Atenção</h3>';
-  if(prodMal.length === 0) h += '<div class="rdetail">Todos os vendedores projetando ≥80%</div>';
-  for(const g of prodMal){
-    h += `<div style="margin-top:8px"><b style="font-size:12px;color:var(--vermelho)">${g.prod}</b>`;
-    h += '<div style="margin-top:4px">';
-    for(const v of g.vends.slice(0,5)){
-      h += `<div class="rdetail"><span>${v.nome}</span><span style="color:var(--vermelho);font-weight:700">${nf1(v.pct)}%</span><span>${nf(Math.round(v.real))} / ${nf(v.meta)} m³</span></div>`;
-    }
-    h += '</div></div>';
-  }
-  h += '</div>';
-
-  // --- 2. SEGMENTO: distribuição por vendedor ---
+  // --- 2. SEGMENTO — distribuição consolidada ---
   const allSegs = {};
   for(const r of results){ for(const s of Object.keys(r.segs)) allSegs[s] = (allSegs[s]||0) + r.segs[s]; }
   const segNames = Object.keys(allSegs).sort((a,b)=>allSegs[b]-allSegs[a]);
@@ -310,50 +312,60 @@ function renderAnalise(results, data){
     h += '<div class="rdetail">Sem dados de segmento</div>';
   } else {
     for(const seg of segNames){
-      const pct = totalSeg > 0 ? allSegs[seg]/totalSeg*100 : 0;
-      h += `<div class="benchrow"><span class="bn">${seg}</span><span class="bv">${nf(Math.round(allSegs[seg]))} m³</span><span class="bl">${nf1(pct)}%</span></div>`;
+      const vol = allSegs[seg];
+      const pct = totalSeg > 0 ? vol/totalSeg*100 : 0;
+      const proj = vol * factor;
+      h += `<div style="padding:8px 0;${seg!==segNames[0]?'border-top:1px solid var(--line);':''}">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <b style="font-size:13px">${seg}</b>
+          <span style="font-size:12px;font-weight:700;color:var(--muted)">${nf1(pct)}%</span>
+        </div>
+        <div class="rdetail" style="margin-top:2px">
+          <span>Real: <b>${nf(Math.round(vol))}</b> m³</span>
+          <span>Projeção: <b>${nf(Math.round(proj))}</b> m³</span>
+        </div>
+        <div class="track" style="margin-top:4px">
+          <div class="fill" style="width:${Math.min(pct*1.2,100)}%;background:var(--azul)"></div>
+        </div>
+      </div>`;
     }
   }
   h += '</div>';
 
-  // Segmento por vendedor — quem concentra vs diversifica
-  h += '<div class="card"><h3>Segmento — Por Vendedor</h3>';
-  const segVends = results.filter(r=>r.real>0).map(r=>{
-    const total = Object.values(r.segs).reduce((a,b)=>a+b,0);
-    const top = Object.entries(r.segs).sort((a,b)=>b[1]-a[1])[0];
-    return {nome:r.nome, total, topSeg:top?top[0]:'—', topPct:top&&total>0?top[1]/total*100:0, segs:r.segs};
-  }).sort((a,b)=>b.topPct-a.topPct);
-  for(const sv of segVends){
-    const entries = Object.entries(sv.segs).sort((a,b)=>b[1]-a[1]);
-    const segStr = entries.slice(0,3).map(([s,v])=>`${s} ${nf1(sv.total>0?v/sv.total*100:0)}%`).join(' · ');
-    h += `<div class="rdetail" style="margin-bottom:6px"><span><b>${sv.nome}</b></span><span style="font-size:10.5px">${segStr}</span></div>`;
-  }
-  h += '</div>';
+  // --- 3. CLIENTES — visão consolidada ---
+  const totalCli = results.reduce((s,r)=>s+r.nCli,0);
+  const totalCliMeta = results.reduce((s,r)=>s+r.cliMeta,0);
+  const cliPctGeral = totalCliMeta > 0 ? totalCli/totalCliMeta*100 : 0;
+  const avgM3Cli = totalCli > 0 ? totalReal/totalCli : 0;
+  const nCliOk = results.filter(r=>r.cliMeta>0 && (r.nCli/r.cliMeta*100)>=pctTime*0.9).length;
+  const nCliBehind = results.filter(r=>r.cliMeta>0 && (r.nCli/r.cliMeta*100)<pctTime*0.7).length;
+  const nCliTotal = results.filter(r=>r.cliMeta>0).length;
 
-  // --- 3. CLIENTES: o que vai bem / o que não vai ---
-  const cliBem = [], cliMal = [];
-  for(const r of results){
-    if(r.cliMeta <= 0) continue;
-    const cliPct = r.nCli / r.cliMeta * 100;
-    const elPct = effEl / data.effFull * 100;
-    if(cliPct >= elPct * 0.9) cliBem.push({nome:r.nome, nCli:r.nCli, meta:r.cliMeta, pct:cliPct});
-    else if(cliPct < elPct * 0.7) cliMal.push({nome:r.nome, nCli:r.nCli, meta:r.cliMeta, pct:cliPct});
-  }
-  cliBem.sort((a,b)=>b.pct-a.pct);
-  cliMal.sort((a,b)=>a.pct-b.pct);
-
-  h += '<div class="card"><h3>Clientes — Indo Bem</h3>';
-  if(cliBem.length === 0) h += '<div class="rdetail">Nenhum vendedor no ritmo esperado de clientes</div>';
-  for(const c of cliBem){
-    h += `<div class="rdetail" style="margin-bottom:4px"><span><b>${c.nome}</b></span><span style="color:var(--verde);font-weight:700">${c.nCli} / ${c.meta}</span><span>${nf1(c.pct)}%</span></div>`;
-  }
-  h += '</div>';
-
-  h += '<div class="card"><h3>Clientes — Atenção</h3>';
-  if(cliMal.length === 0) h += '<div class="rdetail">Todos os vendedores com cobertura adequada</div>';
-  for(const c of cliMal){
-    h += `<div class="rdetail" style="margin-bottom:4px"><span><b>${c.nome}</b></span><span style="color:var(--vermelho);font-weight:700">${c.nCli} / ${c.meta}</span><span>${nf1(c.pct)}%</span></div>`;
-  }
+  h += '<div class="card"><h3>Clientes — Cobertura do Time</h3>';
+  h += `<div style="display:flex;gap:10px;margin-bottom:10px">
+    <div style="flex:1;text-align:center;padding:10px;background:#f6f8fa;border-radius:10px">
+      <div style="font-size:20px;font-weight:800">${nf(totalCli)}</div>
+      <div style="font-size:10.5px;color:var(--muted)">CLIENTES ATIVOS</div>
+    </div>
+    <div style="flex:1;text-align:center;padding:10px;background:#f6f8fa;border-radius:10px">
+      <div style="font-size:20px;font-weight:800">${nf(totalCliMeta)}</div>
+      <div style="font-size:10.5px;color:var(--muted)">META BENCHMARK</div>
+    </div>
+  </div>`;
+  const cliStatus = cliPctGeral >= pctTime*0.9 ? 'g' : (cliPctGeral >= pctTime*0.7 ? 'y' : 'r');
+  h += `<div class="rdetail"><span>Cobertura geral</span><span class="rpct ${cliStatus}">${nf1(cliPctGeral)}%</span></div>`;
+  h += `<div class="track" style="margin-top:6px">
+    <div class="fill" style="width:${Math.min(cliPctGeral,120)/1.2}%;background:var(--azul)"></div>
+    <div class="metaflag" style="left:${100/1.2}%"></div>
+  </div>`;
+  h += `<div class="rdetail" style="margin-top:8px">
+    <span>m³/cliente médio: <b>${nf1(avgM3Cli)}</b></span>
+  </div>`;
+  h += `<div class="rdetail" style="margin-top:4px;font-size:10.5px">
+    <span style="color:var(--verde)">${nCliOk} no ritmo</span>
+    <span style="color:var(--vermelho)">${nCliBehind} abaixo</span>
+    <span>de ${nCliTotal} vendedores</span>
+  </div>`;
   h += '</div>';
 
   return h;
