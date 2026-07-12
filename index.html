@@ -248,17 +248,17 @@ let compute=null, buildDados=null, parseYview=null;
   const EXV=new Set(['PATRICIA GUIMARAES','VALERIA CASEIRO','MAURICIO','VITAL REPR.']);
   const isMesa=code=>MESA.has(nrm(EMB.vends[code]));
   const isOrfName=name=>EXV.has(nrm(name));
-  function mergeJune(juneMap){
+  function mergeCurrent(currentMap){
   const H={};
   for(const cli in EMB.hist){const o=EMB.hist[cli];H[cli]={f:o.f,l:o.l,nd:o.nd,mo:o.mo,tv:o.tv,vd:o.vd,sg:o.sg,ci:o.ci,rv:o.rv.map(x=>x.slice())};}
-  if(juneMap){
-    for(const [cli,j] of juneMap){
+  if(currentMap){
+    for(const [cli,j] of currentMap){
       if(!(cli in H)) continue;            // só atualiza carteira existente
       const o=H[cli];
       const newDays=[...j.days];
       const maxJ=Math.max(...newDays);
       o.l=Math.max(o.l,maxJ);
-      o.nd=o.nd+j.days.size;               // dias de junho são todos novos
+      o.nd=o.nd+j.days.size;
       o.mo=o.mo|j.mo;
       o.tv=Math.round((o.tv+j.vol)*10)/10;
       for(const [k,v] of j.rv){const [m,f]=k.split('|').map(Number);
@@ -267,8 +267,8 @@ let compute=null, buildDados=null, parseYview=null;
   }
   return H;
 }
-  compute=function(juneMap){
-  const H=mergeJune(juneMap);
+  compute=function(currentMap){
+  const H=mergeCurrent(currentMap);
   let refDay=0; for(const cli in H) refDay=Math.max(refDay,H[cli].l);
   const refMI=monthIndexOfDay(refDay);
   const denom=refMI+1;
@@ -358,7 +358,7 @@ let compute=null, buildDados=null, parseYview=null;
   return new Date(+m[3],+m[2]-1,+m[1]);}
   function dayCode(d){return Math.round((d-EPOCH)/86400000);}
   parseYview=function(txt){
-    const lines=txt.split(/\r?\n/); const juneMap=new Map(); let n=0,vol=0;
+    const lines=txt.split(/\r?\n/); const currentMap=new Map(); let n=0,vol=0;
     for(let i=1;i<lines.length;i++){ const c=lines[i].split(';'); if(c.length<50)continue;
       const esc=(c[16]||'').trim(); if(!SP.has(esc))continue;
       const fam=artFam(c[7]); if(fam===null)continue;
@@ -366,12 +366,12 @@ let compute=null, buildDados=null, parseYview=null;
       const q=parseFloat((c[24]||'0').replace(/\./g,'').replace(',','.'))||0;
       const cli=(c[49]||'').trim().replace(/^0+/,''); if(!cli)continue;
       const dc=dayCode(d), m=(d.getFullYear()-2025)*12+d.getMonth();
-      let j=juneMap.get(cli); if(!j){j={days:new Set(),mo:0,vol:0,rv:new Map()};juneMap.set(cli,j);}
+      let j=currentMap.get(cli); if(!j){j={days:new Set(),mo:0,vol:0,rv:new Map()};currentMap.set(cli,j);}
       j.days.add(dc); j.mo|=(1<<m); j.vol+=q; const key=m+'|'+fam; j.rv.set(key,(j.rv.get(key)||0)+q);
       n++; vol+=q;
     }
-    let matched=0; for(const cli of juneMap.keys()) if(EMB.hist[cli]) matched++;
-    return {juneMap, lines:n, vol, clients:matched};
+    let matched=0; for(const cli of currentMap.keys()) if(EMB.hist[cli]) matched++;
+    return {currentMap, lines:n, vol, clients:matched};
   };
 })();
 
@@ -415,7 +415,7 @@ document.getElementById('fileinp').addEventListener('change',e=>{
   r.onload=()=>{try{
       const pr=parseYview(r.result);
       if(!pr.lines){toast('Não achei linhas SP — confira se é o YVIEWCOPA.');return;}
-      const d=buildDados(compute(pr.juneMap));
+      const d=buildDados(compute(pr.currentMap));
       ingest(d); idbSet('dados',d); S.selMeso=null;S.selVend=null;S.selVendX=null;S.selZone=null;S.selSeg=null;S.selStatus=null; render();
       toast('Atualizado: '+d.ret.ref+' · '+pr.clients+' clientes no arquivo'+(pr.clients<150?' — use o mês inteiro':''));
     }catch(err){toast('Erro ao ler: '+err.message);}};
