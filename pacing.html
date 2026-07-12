@@ -135,23 +135,23 @@ const DIAS_UTEIS = 24.0; // seg-sex=1, sab=0.5, dom=0; feriado 09/07 removido
 const FERIADOS = new Set(['2026-07-09']);
 
 const VENDEDORES = [
-  {nome:'Kelly',     s10:7814, s500:1801, gas:1706, hid:532,  cli:152, obs:'cobre Valter (férias)'},
-  {nome:'Luís',      s10:4302, s500:934,  gas:1552, hid:0,    cli:118, obs:'férias 10d ef.'},
-  {nome:'Amauri',    s10:3272, s500:2063, gas:722,  hid:9,    cli:101, obs:null},
-  {nome:'Jeferson',  s10:3023, s500:1070, gas:1860, hid:44,   cli:138, obs:null},
-  {nome:'Jéssica',   s10:3835, s500:882,  gas:1175, hid:0,    cli:114, obs:'cobre Luís (férias)'},
-  {nome:'Sérgio Elias', s10:2387, s500:2242, gas:438, hid:86, cli:122, obs:null},
-  {nome:'Rogério',   s10:2753, s500:928,  gas:1083, hid:40,   cli:88,  obs:'cobre S.Cardoso (férias)'},
-  {nome:'Sérgio Cardoso', s10:3133, s500:554, gas:788, hid:120, cli:60, obs:'férias 5d ef.'},
-  {nome:'Valter',    s10:3320, s500:637,  gas:362,  hid:195,  cli:36,  obs:'férias 16d ef.'},
-  {nome:'Driele',    s10:1874, s500:743,  gas:787,  hid:36,   cli:132, obs:'cobre Silvana (férias)'},
-  {nome:'Michelly',  s10:1429, s500:375,  gas:1480, hid:9,    cli:91,  obs:null},
-  {nome:'Taciana',   s10:1399, s500:837,  gas:435,  hid:0,    cli:105, obs:null},
-  {nome:'ST01',      s10:1258, s500:57,   gas:487,  hid:0,    cli:48,  obs:null},
-  {nome:'Silvana',   s10:691,  s500:354,  gas:457,  hid:25,   cli:42,  obs:'férias 11d ef.'},
-  {nome:'Roberto',   s10:880,  s500:422,  gas:21,   hid:0,    cli:16,  obs:null},
-  {nome:'Neusa',     s10:58,   s500:14,   gas:79,   hid:2,    cli:3,   obs:'férias 11d ef.'},
-  {nome:'Tatyana',   s10:49,   s500:11,   gas:67,   hid:2,    cli:3,   obs:'cobre Neusa (férias)'}
+  {nome:'Kelly',     s10:7814, s500:1801, gas:1706, hid:532,  cli:152, fer:0,  obs:'cobre Valter (férias)'},
+  {nome:'Luís',      s10:4302, s500:934,  gas:1552, hid:0,    cli:118, fer:10, obs:'férias 10d ef.'},
+  {nome:'Amauri',    s10:3272, s500:2063, gas:722,  hid:9,    cli:101, fer:0,  obs:null},
+  {nome:'Jeferson',  s10:3023, s500:1070, gas:1860, hid:44,   cli:138, fer:0,  obs:null},
+  {nome:'Jéssica',   s10:3835, s500:882,  gas:1175, hid:0,    cli:114, fer:0,  obs:'cobre Luís (férias)'},
+  {nome:'Sérgio Elias', s10:2387, s500:2242, gas:438, hid:86, cli:122, fer:0,  obs:null},
+  {nome:'Rogério',   s10:2753, s500:928,  gas:1083, hid:40,   cli:88,  fer:0,  obs:'cobre S.Cardoso (férias)'},
+  {nome:'Sérgio Cardoso', s10:3133, s500:554, gas:788, hid:120, cli:60, fer:5,  obs:'férias 5d ef.'},
+  {nome:'Valter',    s10:3320, s500:637,  gas:362,  hid:195,  cli:36,  fer:16, obs:'férias 16d ef.'},
+  {nome:'Driele',    s10:1874, s500:743,  gas:787,  hid:36,   cli:132, fer:0,  obs:'cobre Silvana (férias)'},
+  {nome:'Michelly',  s10:1429, s500:375,  gas:1480, hid:9,    cli:91,  fer:0,  obs:null},
+  {nome:'Taciana',   s10:1399, s500:837,  gas:435,  hid:0,    cli:105, fer:0,  obs:null},
+  {nome:'ST01',      s10:1258, s500:57,   gas:487,  hid:0,    cli:48,  fer:0,  obs:null},
+  {nome:'Silvana',   s10:691,  s500:354,  gas:457,  hid:25,   cli:42,  fer:11, obs:'férias 11d ef.'},
+  {nome:'Roberto',   s10:880,  s500:422,  gas:21,   hid:0,    cli:16,  fer:0,  obs:null},
+  {nome:'Neusa',     s10:58,   s500:14,   gas:79,   hid:2,    cli:3,   fer:11, obs:'férias 11d ef.'},
+  {nome:'Tatyana',   s10:49,   s500:11,   gas:67,   hid:2,    cli:3,   fer:0,  obs:'cobre Neusa (férias)'}
 ];
 VENDEDORES.forEach(v => v.total = v.s10 + v.s500 + v.gas + v.hid);
 
@@ -407,13 +407,19 @@ function compute(txt){
     const csvEntry = Object.entries(vends).find(([name]) => matchVend(name) === v);
     const real = csvEntry ? csvEntry[1] : {vol:{s10:0,s500:0,gas:0,hid:0},segs:{},clientes:new Set(),dias:new Set()};
     const volReal = real.vol.s10 + real.vol.s500 + real.vol.gas + real.vol.hid;
-    const proj = volReal * factor;
+
+    const vEffFull = effFull - (v.fer || 0);
+    const vEffEl = Math.min(effEl, vEffFull);
+    const vFactor = vEffEl > 0 ? vEffFull / vEffEl : 1;
+    const vRestDays = Math.max(0, vEffFull - effEl);
+
+    const proj = volReal * vFactor;
     const pct = v.total > 0 ? (volReal / v.total * 100) : 0;
     const pctProj = v.total > 0 ? (proj / v.total * 100) : 0;
     const nCli = real.clientes.size;
     const diasAtivos = real.dias.size;
-    const ritmo = effEl > 0 ? volReal / effEl : 0;
-    const necessario = restDays > 0 ? (v.total - volReal) / restDays : 0;
+    const ritmo = vEffEl > 0 ? volReal / vEffEl : 0;
+    const necessario = vRestDays > 0 ? (v.total - volReal) / vRestDays : 0;
     const gap = v.total - volReal;
     const benchCli = BENCH_CLI[v.nome] || 0;
     const benchExpected = benchCli > 0 ? Math.round(v.total / benchCli) : v.cli;
@@ -427,7 +433,8 @@ function compute(txt){
     result.push({
       nome: v.nome, meta: v.total, metaProd:{s10:v.s10,s500:v.s500,gas:v.gas,hid:v.hid},
       real: volReal, realProd: real.vol, segs: real.segs, proj, pct, pctProj, nCli, diasAtivos,
-      ritmo, necessario, gap, obs: v.obs, benchCli, benchExpected, cliMeta: v.cli
+      ritmo, necessario, gap, obs: v.obs, benchCli, benchExpected, cliMeta: v.cli,
+      fer: v.fer || 0, vEffFull, vRestDays
     });
   }
 
@@ -507,8 +514,9 @@ function render(){
       const metaPos = Math.min(100, 100);
 
       if(TAB === 'volume'){
+        const ferTag = r.fer > 0 ? `<span style="font-size:10px;color:var(--laranja)">🏖 ${r.fer}d férias · ${nf1(r.vEffFull)}d úteis</span>` : '';
         html += `<div class="row">
-          <div class="rhead"><span class="rname">${r.nome}</span><span style="display:flex;align-items:center;gap:8px"><span class="rpct ${pctCls}">${nf1(r.pct)}%</span><button class="share-btn" onclick="shareVend('${r.nome.replace(/'/g,"\\'")}')">📤</button></span></div>
+          <div class="rhead"><span class="rname">${r.nome}${ferTag?' '+ferTag:''}</span><span style="display:flex;align-items:center;gap:8px"><span class="rpct ${pctCls}">${nf1(r.pct)}%</span><button class="share-btn" onclick="shareVend('${r.nome.replace(/'/g,"\\'")}')">📤</button></span></div>
           <div class="rdetail">
             <span><b>${nf(Math.round(r.real))}</b> de ${nf(r.meta)} m³</span>
             <span>Proj: <b>${nf(Math.round(r.proj))}</b></span>
@@ -522,6 +530,7 @@ function render(){
           <div class="rdetail" style="margin-top:4px">
             <span>Ritmo: <b>${nf1(r.ritmo)}</b> m³/dia</span>
             <span>Necessário: <b>${nf1(r.necessario)}</b> m³/dia</span>
+            ${r.fer > 0 ? '<span>Dias restantes: <b>'+nf1(r.vRestDays)+'</b></span>' : ''}
           </div>
           ${r.obs ? '<div class="obs">'+r.obs+'</div>' : ''}
         </div>`;
@@ -580,11 +589,16 @@ function shareVend(nome){
   if(!r) return;
   const {maxDay, M, Y, effEl, effFull} = DATA;
   const dt = `${String(maxDay).padStart(2,'0')}/${String(M).padStart(2,'0')}/${Y}`;
-  const diasRest = Math.max(0, Math.round((effFull - effEl)*10)/10);
+  const diasRest = Math.max(0, r.vRestDays);
   const primeiro = r.nome.split(' ')[0];
 
   let msg = `Fala, *${primeiro}*! 👋\n`;
-  msg += `Segue teu pacing atualizado até *${dt}* (${nf1(effEl)} de ${nf1(effFull)} dias úteis):\n\n`;
+  msg += `Segue teu pacing atualizado até *${dt}*`;
+  if(r.fer > 0){
+    msg += ` (${nf1(r.vEffFull)} dias úteis — ${r.fer}d de férias descontados):\n\n`;
+  } else {
+    msg += ` (${nf1(effEl)} de ${nf1(effFull)} dias úteis):\n\n`;
+  }
 
   // Realizado x Meta
   msg += `📦 *Realizado: ${nf(Math.round(r.real))} m³* — isso representa *${nf1(r.pct)}%* da sua meta de ${nf(r.meta)} m³.\n`;
