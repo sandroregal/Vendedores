@@ -662,25 +662,26 @@ async function shareVend(nome){
 
   // --- Tabela unica compacta ---
   msg += '```\n';
-  msg += `Real  ${pad(nf(Math.round(r.real)),6)}  ${pad(nf1(r.pct),5)}%\n`;
-  msg += `Meta  ${pad(nf(r.meta),6)}\n`;
+  msg += `Real ${pad(nf(Math.round(r.real)),6)} m³ ${pad(nf1(r.pct),6)}%\n`;
+  msg += `Meta ${pad(nf(r.meta),6)} m³\n`;
   if(r.gap > 0){
-    msg += `Gap   ${pad(nf(Math.round(r.gap)),6)}  ${pad(nf1(diasRest),5)}d\n`;
+    msg += `Gap  ${pad(nf(Math.round(r.gap)),6)} m³ ${pad(nf1(diasRest),6)}d\n`;
   } else {
-    msg += `Acima ${pad(nf(Math.round(Math.abs(r.gap))),6)}\n`;
+    msg += `Acim ${pad(nf(Math.round(Math.abs(r.gap))),6)} m³\n`;
   }
-  msg += `Proj  ${pad(nf(Math.round(r.proj)),6)}  ${pad(nf1(r.pctProj),5)}%\n`;
+  msg += `Proj ${pad(nf(Math.round(r.proj)),6)} m³ ${pad(nf1(r.pctProj),6)}%\n`;
   if(r.gap > 0){
-    msg += `Ritmo ${pad(nf1(r.ritmo),6)}  Nec ${nf1(r.necessario)}\n`;
+    msg += `Ritm ${pad(nf1(r.ritmo),6)} Nec ${nf1(r.necessario)}\n`;
   } else {
-    msg += `Ritmo ${pad(nf1(r.ritmo),6)} m³/dia\n`;
+    msg += `Ritm ${pad(nf1(r.ritmo),6)} m³/dia\n`;
   }
   msg += `─────────────────────\n`;
   const mp = [{k:'s10',l:'S10'},{k:'s500',l:'S500'},{k:'gas',l:'Gas'},{k:'hid',l:'Hid'}];
-  const mix = mp.filter(x=>r.realProd[x.k]>0).map(x=>`${x.l} ${nf(Math.round(r.realProd[x.k]))}`);
-  msg += mix.join(' | ') + '\n';
+  mp.filter(x=>r.realProd[x.k]>0).forEach(x => {
+    msg += `${x.l.padEnd(4)} ${pad(nf(Math.round(r.realProd[x.k])),6)} m³\n`;
+  });
   const ferNote = r.fer > 0 ? ` (fer ${r.fer}d)` : '';
-  msg += `Cli ${r.nCli} de ${r.cliMeta}${ferNote}\n`;
+  msg += `Cli  ${pad(r.nCli,6)} de ${r.cliMeta}${ferNote}\n`;
   msg += '```\n\n';
 
   // --- Carteira (Copiloto) ---
