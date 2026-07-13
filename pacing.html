@@ -130,36 +130,34 @@ footer{text-align:center;font-size:10.5px;color:var(--muted);margin-top:18px;pad
 <div class="flash" id="flash"></div>
 
 <script>
-/* ===== META JULHO 2026 — Regional SP ===== */
-const META_MES = 'jul/2026';
-const DIAS_UTEIS = 24.0; // seg-sex=1, sab=0.5, dom=0; feriado 09/07 removido
-const FERIADOS = new Set(['2026-07-09']);
+/* ===== META AGOSTO 2026 — Regional SP ===== */
+const META_MES = 'ago/2026';
+const DIAS_UTEIS = 23.5; // seg-sex=1, sab=0.5, dom=0; sem feriado estadual SP
+const FERIADOS = new Set([]);
 
 const VENDEDORES = [
-  {nome:'Kelly',     s10:7814, s500:1801, gas:1706, hid:532,  cli:152, fer:0,  cobre:'Valter',         obs:'cobre Valter (férias)'},
-  {nome:'Luís',      s10:4302, s500:934,  gas:1552, hid:0,    cli:118, fer:10, cobre:null,             obs:'férias 10d ef.'},
-  {nome:'Amauri',    s10:3272, s500:2063, gas:722,  hid:9,    cli:101, fer:0,  cobre:null,             obs:null},
-  {nome:'Jeferson',  s10:3023, s500:1070, gas:1860, hid:44,   cli:138, fer:0,  cobre:null,             obs:null},
-  {nome:'Jéssica',   s10:3835, s500:882,  gas:1175, hid:0,    cli:114, fer:0,  cobre:'Luís',           obs:'cobre Luís (férias)'},
-  {nome:'Sérgio Elias', s10:2387, s500:2242, gas:438, hid:86, cli:122, fer:0,  cobre:null,             obs:null},
-  {nome:'Rogério',   s10:2753, s500:928,  gas:1083, hid:40,   cli:88,  fer:0,  cobre:'Sérgio Cardoso', obs:'cobre S.Cardoso (férias)'},
-  {nome:'Sérgio Cardoso', s10:3133, s500:554, gas:788, hid:120, cli:60, fer:5,  cobre:null,             obs:'férias 5d ef.'},
-  {nome:'Valter',    s10:3320, s500:637,  gas:362,  hid:195,  cli:36,  fer:16, cobre:null,             obs:'férias 16d ef.'},
-  {nome:'Driele',    s10:1874, s500:743,  gas:787,  hid:36,   cli:132, fer:0,  cobre:'Silvana',        obs:'cobre Silvana (férias)'},
-  {nome:'Michelly',  s10:1429, s500:375,  gas:1480, hid:9,    cli:91,  fer:0,  cobre:null,             obs:null},
-  {nome:'Taciana',   s10:1399, s500:837,  gas:435,  hid:0,    cli:105, fer:0,  cobre:null,             obs:null},
-  {nome:'ST01',      s10:1258, s500:57,   gas:487,  hid:0,    cli:48,  fer:0,  cobre:null,             obs:null},
-  {nome:'Silvana',   s10:691,  s500:354,  gas:457,  hid:25,   cli:42,  fer:11, cobre:null,             obs:'férias 11d ef.'},
-  {nome:'Roberto',   s10:880,  s500:422,  gas:21,   hid:0,    cli:16,  fer:0,  cobre:null,             obs:null},
-  {nome:'Neusa',     s10:58,   s500:14,   gas:79,   hid:2,    cli:3,   fer:11, cobre:null,             obs:'férias 11d ef.'},
-  {nome:'Tatyana',   s10:49,   s500:11,   gas:67,   hid:2,    cli:3,   fer:0,  cobre:'Neusa',          obs:'cobre Neusa (férias)'}
+  {nome:'Valter',         s10:7654, s500:1211, gas:563,  hid:277, cli:138, fer:0,  cobre:null,      obs:null},
+  {nome:'Luís',           s10:4570, s500:968,  gas:4325, hid:6,   cli:241, fer:0,  cobre:null,      obs:null},
+  {nome:'Sérgio Cardoso', s10:4342, s500:701,  gas:808,  hid:148, cli:141, fer:0,  cobre:null,      obs:null},
+  {nome:'Amauri',         s10:4315, s500:2274, gas:757,  hid:10,  cli:181, fer:0,  cobre:null,      obs:null},
+  {nome:'Jeferson',       s10:3715, s500:1174, gas:1577, hid:137, cli:259, fer:0,  cobre:null,      obs:null},
+  {nome:'Sérgio Elias',   s10:2950, s500:2532, gas:366,  hid:104, cli:238, fer:0,  cobre:null,      obs:null},
+  {nome:'Rogério',        s10:2298, s500:850,  gas:912,  hid:54,  cli:144, fer:0,  cobre:'Kelly',   obs:'cobre Kelly (férias)'},
+  {nome:'Taciana',        s10:1713, s500:869,  gas:346,  hid:0,   cli:197, fer:0,  cobre:null,      obs:null},
+  {nome:'Michelly',       s10:1756, s500:421,  gas:1226, hid:15,  cli:140, fer:0,  cobre:null,      obs:null},
+  {nome:'Silvana',        s10:1498, s500:630,  gas:685,  hid:99,  cli:149, fer:0,  cobre:null,      obs:null},
+  {nome:'Kelly',          s10:1138, s500:434,  gas:640,  hid:164, cli:113, fer:5,  cobre:null,      obs:'férias 5d ef. · substituto: Rogério'},
+  {nome:'Driele',         s10:1409, s500:446,  gas:314,  hid:15,  cli:152, fer:0,  cobre:null,      obs:null},
+  {nome:'Jéssica',        s10:832,  s500:239,  gas:54,   hid:0,   cli:43,  fer:0,  cobre:null,      obs:null},
+  {nome:'Roberto',        s10:676,  s500:315,  gas:1,    hid:0,   cli:11,  fer:0,  cobre:null,      obs:null},
+  {nome:'Neusa',          s10:122,  s500:24,   gas:116,  hid:5,   cli:9,   fer:0,  cobre:null,      obs:null}
 ];
 VENDEDORES.forEach(v => v.total = v.s10 + v.s500 + v.gas + v.hid);
 
 const BENCH_CLI = {
-  'Valter':125.4,'Roberto':82.7,'Sérgio Cardoso':76.4,'Amauri':59.8,'Luís':57.6,
-  'Neusa':51,'Rogério':49.9,'Jeferson':43.5,'Sérgio Elias':42.2,'ST01':37.5,
-  'Silvana':36.3,'Michelly':36.2,'Kelly':35.3,'Jéssica':34.8,'Taciana':25.4,'Driele':22.4
+  'Roberto':93.9,'Valter':70.2,'Sérgio Cardoso':42.4,'Luís':41.0,'Amauri':40.7,
+  'Neusa':29.2,'Rogério':28.6,'Jéssica':26.4,'Jeferson':25.5,'Sérgio Elias':25.0,
+  'Michelly':24.4,'Kelly':21.1,'Silvana':19.5,'Taciana':14.9,'Driele':14.4
 };
 
 const SP_ESC = new Set(['FI09','FI10','FI13','FI22','FI27']);
