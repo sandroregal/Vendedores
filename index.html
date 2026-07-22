@@ -202,7 +202,7 @@ footer{padding:16px 14px 8px;text-align:center;font-size:10.5px;color:var(--cinz
   </header>
   <main id="main"></main>
   <footer>
-    Royal FIC · Inteligência Comercial — Novos Negócios · SP · <b>v9</b><br>
+    Royal FIC · Inteligência Comercial — Novos Negócios · SP · <b>v10</b><br>
     Uso pessoal · histórico embutido · recalcula no aparelho a partir do YVIEWCOPA · não publicar.
   </footer>
 </div>
@@ -383,6 +383,7 @@ let compute=null, buildDados=null, parseYview=null;
 let DATA=null, RET=null, CROSS=null, VENDS=[], RVENDS=[], XVENDS=[];
 const S={role:'gestor',vend:null,rvend:null,xvend:null,selVend:null,selVendX:null,tab:'conquista',selMeso:null,selZone:null,selSeg:null,selStatus:null};
 let SHARE=null;
+let DRILL_SEL=null;
 let ORPHAN=new Set();  /* vendedores órfãos derivados do flag dos dados — nenhum nome fixo na casca */
 
 const nf=n=>Number(n).toLocaleString('pt-BR');
@@ -478,7 +479,8 @@ function drill(d){const dop=(d.d_opp>0?'+':'')+nf1(d.d_opp),oop=(d.o_opp>0?'+':'
       <div class="dcell"><div class="l">GAP consumidor final</div><div class="v">${nf(d.gap_cf)}</div></div>
       <div class="dcell"><div class="l">Oport. Diesel</div><div class="v ${d.d_opp>0?'pos':'neg'}">${dop} <small style="font-size:11px">p.p.</small></div></div>
       <div class="dcell"><div class="l">Oport. Otto</div><div class="v ${d.o_opp>0?'pos':'neg'}">${oop} <small style="font-size:11px">p.p.</small></div></div>
-    </div><div class="cons">Responsáveis: <b>${d.cons.join(' · ')}</b></div></div>`;}
+    </div><div class="cons">Responsáveis: <b>${d.cons.join(' · ')}</b></div>
+    <div class="btns"><button class="expbtn" data-exp-bb="${d.meso}">📥 Exportar BB</button><button class="expbtn" data-exp-cf="${d.meso}">📥 Exportar CF</button></div></div>`;}
 function rankRow(d,metric){const big=metric==='mks'?nf(d.mks):nf(d.gap_tot);const sm=metric==='mks'?'merc./vend.':'instalações';
   const op=Math.max(d.d_opp,d.o_opp);const opTxt=(op>0?'+':'')+nf1(op)+' p.p.';
   return `<div class="row" data-m="${d.meso.replace(/"/g,'')}"><div class="bar" style="background:${STCOL[d.status]}"></div>
@@ -650,6 +652,8 @@ function mkShareCross(title,items){
 function fallbackCopy(txt){const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');alert('Lista copiada \u2014 cole no WhatsApp ou e-mail.');}catch(e){}document.body.removeChild(ta);}
 function doShare(){if(!SHARE||!SHARE.text)return;if(navigator.share){navigator.share({title:SHARE.title,text:SHARE.text}).catch(()=>{});}else if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(SHARE.text).then(()=>alert('Lista copiada \u2014 cole no WhatsApp ou e-mail.')).catch(()=>fallbackCopy(SHARE.text));}else{fallbackCopy(SHARE.text);}}
 
+function exportGap(tipo,meso){alert('Aguardando lista de oportunidades para a próxima atualização');}
+
 /* ===== render ===== */
 function render(){
   const m=document.getElementById('main');
@@ -658,14 +662,14 @@ function render(){
   document.getElementById('vendwrap').classList.toggle('hide', !(DATA&&S.tab==='conquista'&&S.role==='vendedor'));
   if(!DATA||!RET){
     m.innerHTML=(S.tab==='pacing')?fasePacing():emptyState();
-    document.getElementById('subref').textContent='Carregue os dados · v9';
+    document.getElementById('subref').textContent='Carregue os dados · v10';
     return;
   }
   if(S.tab==='conquista'){m.innerHTML=S.role==='gestor'?conquistaGestor():conquistaVendedor();}
   else if(S.tab==='retomada'){m.innerHTML=S.role==='gestor'?retomadaGestor():retomadaVendedor();}
   else if(S.tab==='crosssell'){m.innerHTML=CROSS?(S.role==='gestor'?crossGestor():crossVendedor()):emptyState();}
   else {m.innerHTML=fasePacing();}
-  document.getElementById('subref').textContent = subm[S.tab]+' · '+RET.ref+' · v9';
+  document.getElementById('subref').textContent = subm[S.tab]+' · '+RET.ref+' · v10';
   m.querySelectorAll('[data-m]').forEach(el=>el.addEventListener('click',()=>{const mm=el.getAttribute('data-m');S.selMeso=(S.selMeso===mm)?null:mm;render();setTimeout(()=>{const d=document.querySelector('.drill');if(d)d.scrollIntoView({behavior:'smooth',block:'center'});},60);}));
   const rv=document.getElementById('rvendsel'); if(rv) rv.addEventListener('change',()=>{S.rvend=rv.value||null;render();});
   const xv=document.getElementById('xvendsel'); if(xv) xv.addEventListener('change',()=>{S.xvend=xv.value||null;render();});
@@ -677,6 +681,8 @@ function render(){
   m.querySelectorAll('[data-status]').forEach(el=>el.addEventListener('click',()=>{const s=el.getAttribute('data-status');S.selStatus=(S.selStatus===s)?null:s;render();scrollFlt();}));
   m.querySelectorAll('[data-clear]').forEach(el=>el.addEventListener('click',ev=>{ev.stopPropagation();const k=el.getAttribute('data-clear');if(k==='zone')S.selZone=null;else if(k==='seg')S.selSeg=null;else if(k==='status')S.selStatus=null;render();}));
   m.querySelectorAll('[data-share]').forEach(el=>el.addEventListener('click',doShare));
+  m.querySelectorAll('[data-exp-bb]').forEach(el=>el.addEventListener('click',()=>{const meso=el.getAttribute('data-exp-bb');DRILL_SEL={meso,tipo:'bb'};exportGap('bb',meso);}));
+  m.querySelectorAll('[data-exp-cf]').forEach(el=>el.addEventListener('click',()=>{const meso=el.getAttribute('data-exp-cf');DRILL_SEL={meso,tipo:'cf'};exportGap('cf',meso);}));
 }
 
 document.getElementById('roleseg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S.role=b.dataset.role;S.selMeso=null;S.selZone=null;S.selSeg=null;S.selStatus=null;document.querySelectorAll('#roleseg button').forEach(x=>x.classList.toggle('on',x===b));render();});

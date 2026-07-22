@@ -1,11 +1,10 @@
-const CACHE='copiloto-sp-v26';
-const SHELL=['./','./index.html','./pacing.html','./manifest.webmanifest','./manifest-pacing.webmanifest','./icon-192.png','./icon-512.png','./icon-maskable.png'];
+const CACHE='copiloto-sp-v10';
+const SHELL=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./icon-maskable.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==CACHE).map(x=>caches.delete(x)))).then(()=>self.clients.claim()));});
 self.addEventListener('fetch',e=>{
   const req=e.request;
   if(req.method!=='GET') return;
-  // REDE PRIMEIRO: sempre tenta a versão nova; cache só como reserva (offline)
   e.respondWith(
     fetch(req).then(res=>{
       const copy=res.clone();
