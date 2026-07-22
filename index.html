@@ -202,7 +202,7 @@ footer{padding:16px 14px 8px;text-align:center;font-size:10.5px;color:var(--cinz
   </header>
   <main id="main"></main>
   <footer>
-    Royal FIC · Inteligência Comercial — Novos Negócios · SP · <b>v10</b><br>
+    Royal FIC · Inteligência Comercial — Novos Negócios · SP · <b>v9</b><br>
     Uso pessoal · histórico embutido · recalcula no aparelho a partir do YVIEWCOPA · não publicar.
   </footer>
 </div>
@@ -652,7 +652,30 @@ function mkShareCross(title,items){
 function fallbackCopy(txt){const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');alert('Lista copiada \u2014 cole no WhatsApp ou e-mail.');}catch(e){}document.body.removeChild(ta);}
 function doShare(){if(!SHARE||!SHARE.text)return;if(navigator.share){navigator.share({title:SHARE.title,text:SHARE.text}).catch(()=>{});}else if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(SHARE.text).then(()=>alert('Lista copiada \u2014 cole no WhatsApp ou e-mail.')).catch(()=>fallbackCopy(SHARE.text));}else{fallbackCopy(SHARE.text);}}
 
-function exportGap(tipo,meso){alert('Aguardando lista de oportunidades para a próxima atualização');}
+function exportGap(tipo,meso){
+  if(!DATA || !DATA.opp || !DATA.opp[meso]) { alert('Oportunidades não carregadas'); return; }
+  const lista = DATA.opp[meso][tipo];
+  if(!lista || lista.length === 0) { alert('Nenhuma oportunidade de ' + tipo + ' em ' + meso); return; }
+  
+  const tipo_nome = tipo === 'bb' ? 'Postos Bandeira Branca' : 'Consumidor Final';
+  const titulo = meso + ' — ' + tipo_nome;
+  const text = '🔵 Royal FIC — Oportunidades\n' + titulo + '\n' + new Date().toLocaleDateString('pt-BR') + '\n\n' +
+    'Total de oportunidades: ' + lista.length + '\n\n' +
+    lista.slice(0,100).map((o,i)=>(i+1) + ') ' + o.cnpj + ' | ' + o.nome.substring(0,60) + ' | ' + o.cidade).join('\n');
+  
+  if(navigator.share) {
+    navigator.share({title: 'Oportunidades: ' + titulo, text: text}).catch(()=>{});
+  } else if(navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(()=>alert('Lista copiada (100 de '+lista.length+')')).catch(()=>alert('Erro ao copiar'));
+  } else {
+    const ta=document.createElement('textarea');
+    ta.value=text;
+    document.body.appendChild(ta);
+    ta.select();
+    try{document.execCommand('copy');alert('Lista copiada (100 de '+lista.length+')');}catch(e){}
+    document.body.removeChild(ta);
+  }
+}
 
 /* ===== render ===== */
 function render(){
@@ -662,14 +685,14 @@ function render(){
   document.getElementById('vendwrap').classList.toggle('hide', !(DATA&&S.tab==='conquista'&&S.role==='vendedor'));
   if(!DATA||!RET){
     m.innerHTML=(S.tab==='pacing')?fasePacing():emptyState();
-    document.getElementById('subref').textContent='Carregue os dados · v10';
+    document.getElementById('subref').textContent='Carregue os dados · v9';
     return;
   }
   if(S.tab==='conquista'){m.innerHTML=S.role==='gestor'?conquistaGestor():conquistaVendedor();}
   else if(S.tab==='retomada'){m.innerHTML=S.role==='gestor'?retomadaGestor():retomadaVendedor();}
   else if(S.tab==='crosssell'){m.innerHTML=CROSS?(S.role==='gestor'?crossGestor():crossVendedor()):emptyState();}
   else {m.innerHTML=fasePacing();}
-  document.getElementById('subref').textContent = subm[S.tab]+' · '+RET.ref+' · v10';
+  document.getElementById('subref').textContent = subm[S.tab]+' · '+RET.ref+' · v9';
   m.querySelectorAll('[data-m]').forEach(el=>el.addEventListener('click',()=>{const mm=el.getAttribute('data-m');S.selMeso=(S.selMeso===mm)?null:mm;render();setTimeout(()=>{const d=document.querySelector('.drill');if(d)d.scrollIntoView({behavior:'smooth',block:'center'});},60);}));
   const rv=document.getElementById('rvendsel'); if(rv) rv.addEventListener('change',()=>{S.rvend=rv.value||null;render();});
   const xv=document.getElementById('xvendsel'); if(xv) xv.addEventListener('change',()=>{S.xvend=xv.value||null;render();});
