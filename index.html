@@ -227,8 +227,24 @@ function ingest(d){
   const vs=document.getElementById('vendsel');
   vs.innerHTML='<option value="">— escolha o vendedor —</option>'+VENDS.map(v=>`<option value="${v}">${v}</option>`).join('');
 }
-async function boot(){const d=await idbGet('dados'); if(d){ingest(d);} render();}
-
+async function boot(){
+  let d=await idbGet('dados');
+  if(!d){
+    // Tentar carregar historico_SP.json do GitHub
+    try{
+      const res = await fetch('./historico_SP.json');
+      if(res.ok){
+        d = await res.json();
+        await idbSet('dados', d);
+        console.log('✅ historico_SP.json carregado automaticamente');
+      }
+    }catch(err){
+      console.log('ℹ️ historico_SP.json não encontrado');
+    }
+  }
+  if(d) ingest(d);
+  render();
+}
 /* ===== carregar arquivo ===== */
 document.getElementById('btnref').addEventListener('click',()=>document.getElementById('fileinp').click());
 /* ===== CSV PROCESSING ===== */
