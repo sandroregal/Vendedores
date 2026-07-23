@@ -19,7 +19,8 @@
 (async () => {
   const msg = document.getElementById('msg');
   try {
-    // Unregister all service workers
+    await new Promise((res,rej)=>{const r=indexedDB.deleteDatabase('copilotoSP');r.onsuccess=res;r.onerror=rej;r.onblocked=res;});
+      // Unregister all service workers
     const regs = await navigator.serviceWorker.getRegistrations();
     for (const reg of regs) await reg.unregister();
 
@@ -27,7 +28,7 @@
     const keys = await caches.keys();
     for (const key of keys) await caches.delete(key);
 
-    msg.textContent = 'Cache limpo! Redirecionando para o app v11...';
+    msg.textContent = 'Cache e dados limpos! Redirecionando para o app v11...';
     document.querySelector('h2').innerHTML = '<span class="ok">✓</span> Pronto!';
   } catch(e) {
     msg.textContent = 'Erro: ' + e.message + ' — tentando redirecionar...';
