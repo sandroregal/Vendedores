@@ -218,38 +218,82 @@ const ZLAB={quente:'Quente · atrasado',alerta:'Alerta',perda:'Risco de perda',c
 
 /* ===== YVIEWCOPA CSV PROCESSOR ===== */
 function parseYVIEWCOPA(csvText) {
-  const lines = csvText.split('\n').map(l => l.trim()).filter(l => l);
-  if (lines.length < 2) { alert('CSV vazio'); return null; }
+  console.log('📖 Parseando CSV... (tamanho:', csvText.length, ')');
   
-  const header = lines[0].split(';').map(h => h.trim());
+  // Dividir por quebra de linha (CRLF ou LF)
+  let lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+  
+  if (lines.length < 2) {
+    console.error('CSV com menos de 2 linhas:', lines.length);
+    toast('CSV muito pequeno ou vazio');
+    return null;
+  }
+  
+  console.log('Lines:', lines.length);
+  
+  // Parse header
+  const headerLine = lines[0];
+  const header = headerLine.split(';').map(h => h.trim());
+  console.log('Colunas:', header.length, '- Primeiras:', header.slice(0, 5));
+  
+  // Parse records
   const records = [];
   for (let i = 1; i < lines.length; i++) {
-    const parts = lines[i].split(';');
+    const line = lines[i];
+    if (!line) continue;
+    
+    const parts = line.split(';');
     const row = {};
-    header.forEach((h, idx) => { row[h] = (parts[idx] || '').trim(); });
-    if (row['ID parceiro']) records.push(row);
+    
+    header.forEach((h, idx) => {
+      row[h] = parts[idx] ? parts[idx].trim() : '';
+    });
+    
+    // Validar registro
+    if (row['ID parceiro'] && row['Qtd.vendas']) {
+      records.push(row);
+    }
+  }
+  
+  console.log('✅ Registros parseados:', records.length);
+  if (records.length === 0) {
+    console.warn('Nenhum registro com ID parceiro + Qtd.vendas');
   }
   
   return records;
 }
 
 function processYVIEWCOPAforCopiloto(records) {
+  console.log('🔄 Processando registros:', records.length);
+  
   const SP_BASES = ['FI09', 'FI10', 'FI13', 'FI22', 'FI27'];
   const vendedores = new Set();
+  let validRecords = 0;
   
   for (const row of records) {
-    const escrvendas = row['Escritório de vendas'] || '';
-    if (!SP_BASES.includes(escrvendas.trim())) continue;
+    const escrvendas = (row['Escritório de vendas'] || '').trim();
     
-    const vol = parseFloat((row['Qtd.vendas'] || '0').replace(',', '.'));
+    if (!SP_BASES.includes(escrvendas)) continue;
+    
+    const qtdStr = (row['Qtd.vendas'] || '0').replace(',', '.');
+    const vol = parseFloat(qtdStr);
     const unidade = (row['Unid.medida básica'] || '').trim();
-    if (unidade !== 'M3' || vol === 0) continue;
     
-    const vend = row['Equipe de vendas'] || '';
-    if (vend) vendedores.add(vend);
+    if (unidade !== 'M3') continue;
+    if (vol === 0 || isNaN(vol)) continue;
+    
+    const vend = (row['Equipe de vendas'] || '').trim();
+    if (vend) {
+      vendedores.add(vend);
+      validRecords++;
+    }
   }
   
+  console.log('✅ Registros válidos (SP + M3):', validRecords);
+  console.log('✅ Vendedores únicos:', vendedores.size);
+  
   const vendList = Array.from(vendedores).sort();
+  console.log('Vendedores:', vendList.slice(0, 5), '...');
   
   const meso = { meso: 'SP - YVIEWCOPA', cons: vendList, gap: [] };
   const ret = { fila: vendList.map(v => ({ vend: v, orf: false })) };
@@ -259,12 +303,35 @@ function processYVIEWCOPAforCopiloto(records) {
 
 async function carregarYVIEWCOPA(file) {
   try {
-    const text = await file.text();
+    console.log('📂 Arquivo selecionado:', file.name, 'Tamanho:', file.size);
+    
+    // Tentar ler com diferentes encodings
+    let text;
+    try {
+      text = await file.text(); // Browser default (UTF-8)
+    } catch(e) {
+      console.warn('Erro UTF-8, tentando diferente...');
+      const buffer = await file.arrayBuffer();
+      const decoder = new TextDecoder('iso-8859-1');
+      text = decoder.decode(buffer);
+    }
+    
+    console.log('✅ Arquivo lido:', text.length, 'caracteres');
+    
     const records = parseYVIEWCOPA(text);
-    if (!records) return;
+    if (!records || records.length === 0) {
+      toast('❌ Nenhum registro válido encontrado no CSV');
+      return;
+    }
     
     const data = processYVIEWCOPAforCopiloto(records);
+    if (!data || data.meso[0].cons.length === 0) {
+      toast('❌ Nenhum vendedor SP (M3) encontrado');
+      return;
+    }
+    
     await idbSet('dados', data);
+    console.log('✅ Dados salvos');
     
     ingest(data);
     S.selMeso = null;
@@ -273,7 +340,8 @@ async function carregarYVIEWCOPA(file) {
     
     toast('✅ YVIEWCOPA carregado: ' + data.meso[0].cons.length + ' vendedores');
   } catch(err) {
-    toast('Erro: ' + err.message);
+    console.error('Erro completo:', err);
+    toast('❌ Erro: ' + err.message);
   }
 }
 
