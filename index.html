@@ -222,8 +222,8 @@ footer{padding:16px 14px 8px;text-align:center;font-size:10.5px;color:var(--cinz
 <div id="basescreen" style="position:fixed;inset:0;z-index:9999;background:#0E4C89;color:#fff;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;font-family:system-ui,Arial,sans-serif">
   <div style="background:#fff;border-radius:16px;padding:12px 16px;margin-bottom:22px"><img src="icon-192.png" alt="Royal FIC" style="height:52px;display:block"></div>
   <div style="font-size:20px;font-weight:800;margin-bottom:10px">Copiloto Comercial SP</div>
-  <div style="font-size:15px;line-height:1.55;max-width:340px;opacity:.95;margin-bottom:24px">Carregue ou <b>atualize</b> a base histórica (arquivo <b>historico_SP.json</b>). Fica salva só aqui no seu celular — não vai para a internet.</div>
-  <button id="basebtn" style="background:#F89D1B;color:#10243B;border:0;border-radius:12px;padding:14px 28px;font-size:16px;font-weight:800">Carregar base histórica</button>
+  <div style="font-size:15px;line-height:1.55;max-width:340px;opacity:.95;margin-bottom:24px">Carregue ou <b>atualize</b> a base hist&oacute;rica (arquivo <b>historico_SP.json</b>). Fica salva s&oacute; aqui no seu celular &mdash; n&atilde;o vai para a internet.</div>
+  <button id="basebtn" style="background:#F89D1B;color:#10243B;border:0;border-radius:12px;padding:14px 28px;font-size:16px;font-weight:800">Carregar base hist&oacute;rica</button>
   <div id="basemsg" style="font-size:13px;margin-top:16px;opacity:.92;min-height:18px"></div>
   <button id="baseback" style="display:none;margin-top:18px;background:transparent;color:#fff;border:1px solid rgba(255,255,255,.5);border-radius:10px;padding:10px 22px;font-size:14px;font-weight:600">Voltar</button>
 </div>
@@ -484,7 +484,7 @@ function drill(d){const dop=(d.d_opp>0?'+':'')+nf1(d.d_opp),oop=(d.o_opp>0?'+':'
 function rankRow(d,metric){const big=metric==='mks'?nf(d.mks):nf(d.gap_tot);const sm=metric==='mks'?'merc./vend.':'instalações';
   const op=Math.max(d.d_opp,d.o_opp);const opTxt=(op>0?'+':'')+nf1(op)+' p.p.';
   return `<div class="row" data-m="${d.meso.replace(/"/g,'')}"><div class="bar" style="background:${STCOL[d.status]}"></div>
-    <div class="mn"><div class="nm">${d.meso}</div><div class="ms"><span class="chip ${d.status}">${STLAB[d.status]}</span>  pen. BB ${nf1(d.pen_bb)}% · oport. <span class="opp ${op>0?'pos':'neg'}">${opTxt}</span></div></div>
+    <div class="mn"><div class="nm">${d.meso}</div><div class="ms"><span class="chip ${d.status}">${STLAB[d.status]}</span> &nbsp;pen. BB ${nf1(d.pen_bb)}% · oport. <span class="opp ${op>0?'pos':'neg'}">${opTxt}</span></div></div>
     <div class="rt"><div class="big">${big}</div><div class="sm">${sm}</div></div></div>`;}
 
 function conquistaGestor(){
@@ -495,7 +495,7 @@ function conquistaGestor(){
     <div class="kpi"><div class="lab">Penetração postos BB</div><div class="val">${nf1(rBB/tBB*100)}<small>%</small></div><div class="note">${nf(rBB)} de ${nf(tBB)} postos</div></div>
     <div class="kpi"><div class="lab">Penetração cons. final</div><div class="val">${nf1(rCF/tCF*100)}<small>%</small></div><div class="note">${nf(rCF)} de ${nf(tCF)}</div></div>
     <div class="kpi hi"><div class="lab">GAP total a conquistar</div><div class="val">${nf(gap)}</div><div class="note">instalações não atendidas</div></div>
-    <div class="kpi"><div class="lab">Mesorregiões subcobertas</div><div class="val">${sub}<small> / 15</small></div><div class="note">mercado/vendedor > 250</div></div></div>`;
+    <div class="kpi"><div class="lab">Mesorregiões subcobertas</div><div class="val">${sub}<small> / 15</small></div><div class="note">mercado/vendedor &gt; 250</div></div></div>`;
   h+=`<div class="secttl">Mapa de oportunidade — toque numa região</div>`+buildMap(DATA);
   if(S.selMeso){h+=drill(DATA.find(d=>d.meso===S.selMeso));}
   let cg=[...DATA].sort((a,b)=>b.mks-a.mks);if(S.selStatus)cg=cg.filter(d=>d.status===S.selStatus);h+=`<div class="secttl flt">Pressão de cobertura (mercado/vendedor)${S.selStatus?` · ${STLAB[S.selStatus]} <span class="clearf" data-clear="status">limpar</span>`:''}</div>`+cg.map(d=>rankRow(d,'mks')).join('');
@@ -511,7 +511,7 @@ function conquistaVendedor(){
   let h=`<div class="vhead"><div class="who">Frentes de conquista</div><div class="nm">${S.vend}</div>
     <div class="ln">Você atua em <b>${regs.length}</b> mesorregião(ões), com <b>${nf(gap)}</b> instalações ainda não atendidas. Sua maior frente é <b>${top.meso}</b>.</div></div>`;
   h+=`<div class="secttl">Sua região no estado</div>`+buildMap(regs);
-  if(S.selMeso&®s.some(d=>d.meso===S.selMeso)){h+=drill(DATA.find(d=>d.meso===S.selMeso));}
+  if(S.selMeso&&regs.some(d=>d.meso===S.selMeso)){h+=drill(DATA.find(d=>d.meso===S.selMeso));}
   h+=`<div class="secttl flt">Onde conquistar primeiro${S.selStatus?` · ${STLAB[S.selStatus]} <span class="clearf" data-clear="status">limpar</span>`:''}</div>`;
   let rg=S.selStatus?regs.filter(d=>d.status===S.selStatus):regs;
   h+=rg.map(d=>{const sh=d.cons.filter(c=>c!==S.vend);let r=rankRow(d,'gap');
@@ -527,7 +527,7 @@ function conquistaVendedor(){
 const filaDe=v=>RET.fila.filter(o=>o.vend===v).sort((a,b)=>b.pri-a.pri);
 function retRow(o){return `<div class="row" style="cursor:default"><div class="bar" style="background:${ZCOL[o.zona]}"></div>
   <div class="mn"><div class="nm">Cliente ${o.cli} · ${o.cidade}${o.orf?' <span class="tg orf">órfã</span>':''}</div>
-  <div class="ms"><span class="chip" style="background:${ZCOL[o.zona]}22;color:${ZCOL[o.zona]}">${ZLAB[o.zona]}</span>  ${o.seg} · ciclo ${o.cycle}d · parado ${o.lapso}d (${o.ratio}×)</div></div>
+  <div class="ms"><span class="chip" style="background:${ZCOL[o.zona]}22;color:${ZCOL[o.zona]}">${ZLAB[o.zona]}</span> &nbsp;${o.seg} · ciclo ${o.cycle}d · parado ${o.lapso}d (${o.ratio}×)</div></div>
   <div class="rt"><div class="big">${nf(o.volm)}</div><div class="sm">m³/mês · prop ${o.prop}</div></div></div>`;}
 function retomadaVendedor(){
   const sel=`<div class="rvsel"><select id="rvendsel"><option value="">— escolha o vendedor da carteira —</option>${RVENDS.map(v=>`<option value="${v}"${v===S.rvend?' selected':''}>${v}</option>`).join('')}</select></div>`;
