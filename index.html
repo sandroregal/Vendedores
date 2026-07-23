@@ -14,7 +14,7 @@
  --tinta:#10202F;--cinza:#5B6B7A;--cinza-cl:#8A97A3;
  --linha:#E4EAF0;--fundo:#EEF2F6;--papel:#fff;--box:#F6F9FC;
  --conq:#F89D1B;--equi:#E0B23C;--atend:#2E8B6A;
- --verde:#1E8A5A;--verm:#C2453B;
+ --verde:#1E8A5A;--verm:#C2453B;h
  --sb: env(safe-area-inset-bottom,0px);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -202,7 +202,7 @@ footer{padding:16px 14px 8px;text-align:center;font-size:10.5px;color:var(--cinz
   </header>
   <main id="main"></main>
   <footer>
-    Royal FIC · Inteligência Comercial — Novos Negócios · SP · <b>v9</b><br>
+    Royal FIC · Inteligência Comercial — Novos Negócios · SP · <b>v11</b><br>
     Uso pessoal · histórico embutido · recalcula no aparelho a partir do YVIEWCOPA · não publicar.
   </footer>
 </div>
@@ -383,7 +383,7 @@ let compute=null, buildDados=null, parseYview=null;
 let DATA=null, RET=null, CROSS=null, VENDS=[], RVENDS=[], XVENDS=[];
 const S={role:'gestor',vend:null,rvend:null,xvend:null,selVend:null,selVendX:null,tab:'conquista',selMeso:null,selZone:null,selSeg:null,selStatus:null};
 let SHARE=null;
-let DRILL_SEL=null;
+let OPP=null;let DRILL_SEL=null;
 let ORPHAN=new Set();  /* vendedores órfãos derivados do flag dos dados — nenhum nome fixo na casca */
 
 const nf=n=>Number(n).toLocaleString('pt-BR');
@@ -410,7 +410,7 @@ function ingest(d){
   vs.innerHTML='<option value="">— escolha o vendedor —</option>'+VENDS.map(v=>`<option value="${v}">${v}</option>`).join('');
 }
 async function applyBaseAndBoot(){const c=await idbGet('dados'); try{ingest(c||buildDados(compute(null)));}catch(e){console.error(e);ingest(c||{meso:CONQ,ret:{ref:'',medcyc:0,fila:[]},cross:{ref:'',fams:['Gasolina','S10','S500','Hidratado'],seg:[],cli:[]}});} render();}
-async function boot(){const base=await idbGet('base'); if(base&&base.emb&&base.conq){EMB=base.emb;CONQ=base.conq;document.getElementById('basescreen').style.display='none';applyBaseAndBoot();}else{document.getElementById('basescreen').style.display='flex';}}
+async function boot(){const base=await idbGet('base');const sopp=await idbGet('opp');if(sopp)OPP=sopp;fetch('./casca_historico_SP.json').then(r=>r.json()).then(j=>{if(j&&j.opp){OPP=j.opp;idbSet('opp',OPP);}}).catch(()=>{});if(base&&base.emb&&base.conq&&base.conq.length>0){EMB=base.emb;CONQ=base.conq;document.getElementById('basescreen').style.display='none';applyBaseAndBoot();}else{document.getElementById('basescreen').style.display='flex';}}
 
 /* ===== carregar arquivo ===== */
 document.getElementById('btnref').addEventListener('click',()=>document.getElementById('fileinp').click());
@@ -449,7 +449,7 @@ document.getElementById('baseinp').addEventListener('change',e=>{
   r.onload=()=>{try{
       const o=JSON.parse(r.result);
       if(!o||!o.emb||!o.conq){msg.textContent='Arquivo inválido — selecione o historico_SP.json.';return;}
-      EMB=o.emb; CONQ=o.conq; idbSet('base',{emb:o.emb,conq:o.conq});
+      EMB=o.emb; CONQ=o.conq; idbSet('base',{emb:o.emb,conq:o.conq}); if(o.opp){OPP=o.opp;idbSet('opp',OPP);}
       document.getElementById('basescreen').style.display='none';
       applyBaseAndBoot();
     }catch(err){msg.textContent='Erro ao ler: '+err.message;}};
@@ -653,8 +653,8 @@ function fallbackCopy(txt){const ta=document.createElement('textarea');ta.value=
 function doShare(){if(!SHARE||!SHARE.text)return;if(navigator.share){navigator.share({title:SHARE.title,text:SHARE.text}).catch(()=>{});}else if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(SHARE.text).then(()=>alert('Lista copiada \u2014 cole no WhatsApp ou e-mail.')).catch(()=>fallbackCopy(SHARE.text));}else{fallbackCopy(SHARE.text);}}
 
 function exportGap(tipo,meso){
-  if(!DATA || !DATA.opp || !DATA.opp[meso]) { alert('Oportunidades não carregadas'); return; }
-  const lista = DATA.opp[meso][tipo];
+  if(!OPP || !OPP[meso]) { alert('Oportunidades não carregadas'); return; }
+  const lista = OPP[meso][tipo];
   if(!lista || lista.length === 0) { alert('Nenhuma oportunidade de ' + tipo + ' em ' + meso); return; }
   
   const tipo_nome = tipo === 'bb' ? 'Postos Bandeira Branca' : 'Consumidor Final';
@@ -685,14 +685,14 @@ function render(){
   document.getElementById('vendwrap').classList.toggle('hide', !(DATA&&S.tab==='conquista'&&S.role==='vendedor'));
   if(!DATA||!RET){
     m.innerHTML=(S.tab==='pacing')?fasePacing():emptyState();
-    document.getElementById('subref').textContent='Carregue os dados · v9';
+    document.getElementById('subref').textContent='Carregue os dados · v11';
     return;
   }
   if(S.tab==='conquista'){m.innerHTML=S.role==='gestor'?conquistaGestor():conquistaVendedor();}
   else if(S.tab==='retomada'){m.innerHTML=S.role==='gestor'?retomadaGestor():retomadaVendedor();}
   else if(S.tab==='crosssell'){m.innerHTML=CROSS?(S.role==='gestor'?crossGestor():crossVendedor()):emptyState();}
   else {m.innerHTML=fasePacing();}
-  document.getElementById('subref').textContent = subm[S.tab]+' · '+RET.ref+' · v9';
+  document.getElementById('subref').textContent = subm[S.tab]+' · '+RET.ref+' · v11';
   m.querySelectorAll('[data-m]').forEach(el=>el.addEventListener('click',()=>{const mm=el.getAttribute('data-m');S.selMeso=(S.selMeso===mm)?null:mm;render();setTimeout(()=>{const d=document.querySelector('.drill');if(d)d.scrollIntoView({behavior:'smooth',block:'center'});},60);}));
   const rv=document.getElementById('rvendsel'); if(rv) rv.addEventListener('change',()=>{S.rvend=rv.value||null;render();});
   const xv=document.getElementById('xvendsel'); if(xv) xv.addEventListener('change',()=>{S.xvend=xv.value||null;render();});
