@@ -194,7 +194,7 @@ footer{padding:16px 14px 8px;text-align:center;font-size:10.5px;color:var(--cinz
   <button data-tab="crosssell"><span class="ic">🧺</span>Cross-sell<span class="fz">F2</span></button>
   <button data-tab="pacing"><span class="ic">📈</span>Pacing<span class="fz">F3</span></button>
 </nav>
-<input type="file" id="fileinp" accept=".csv" style="display:none">
+<input type="file" id="fileinp" accept=".json,application/json" style="display:none">
 <div class="toast" id="toast"></div>
 
 <script>
@@ -215,135 +215,6 @@ const ZCOL={quente:'#F0A93A',alerta:'#E8743B',perda:'#C2453B',ciclo:'#2E8B6A'};
 const ZLAB={quente:'Quente · atrasado',alerta:'Alerta',perda:'Risco de perda',ciclo:'No ciclo'};
 
 /* ===== IndexedDB (cache só no aparelho) ===== */
-
-/* ===== YVIEWCOPA CSV PROCESSOR ===== */
-function parseYVIEWCOPA(csvText) {
-  console.log('📖 Parseando CSV...');
-  
-  const lines = csvText.split(/\r?\n/).filter(l => l.trim());
-  if (lines.length < 2) return null;
-  
-  const header = lines[0].split(';').map(h => h.trim());
-  console.log('✅ Header:', header.length, 'colunas');
-  
-  const records = [];
-  for (let i = 1; i < lines.length; i++) {
-    const parts = lines[i].split(';');
-    const row = {};
-    header.forEach((h, idx) => {
-      row[h] = parts[idx] ? parts[idx].trim() : '';
-    });
-    records.push(row);
-  }
-  
-  console.log('✅ Registros lidos:', records.length);
-  return records;
-}
-
-function processYVIEWCOPAforCopiloto(records) {
-  console.log('🔄 Processando registros:', records.length);
-  
-  const SP_BASES = ['FI09', 'FI10', 'FI13', 'FI22', 'FI27'];
-  const vendedores = new Set();
-  let validRecords = 0;
-  
-  for (const row of records) {
-    const escrvendas = (row['Escritório de vendas'] || '').trim();
-    
-    if (!SP_BASES.includes(escrvendas)) continue;
-    
-    const qtdStr = (row['Qtd.vendas'] || '0').replace(',', '.');
-    const vol = parseFloat(qtdStr);
-    const unidade = (row['Unid.medida básica'] || '').trim();
-    
-    if (unidade !== 'M3') continue;
-    if (vol === 0 || isNaN(vol)) continue;
-    
-    const vend = (row['Equipe de vendas'] || '').trim();
-    if (vend) {
-      vendedores.add(vend);
-      validRecords++;
-    }
-  }
-  
-  console.log('✅ Registros válidos (SP + M3):', validRecords);
-  console.log('✅ Vendedores únicos:', vendedores.size);
-  
-  const vendList = Array.from(vendedores).sort();
-  console.log('Vendedores:', vendList.slice(0, 5), '...');
-  
-  const meso = { meso: 'SP - YVIEWCOPA', cons: vendList, gap: [] };
-  const ret = { fila: vendList.map(v => ({ vend: v, orf: false })) };
-  
-  return { meso: [meso], ret: ret, gerado: new Date().toLocaleString('pt-BR') };
-}
-
-async function carregarYVIEWCOPA(file) {
-  return new Promise((resolve, reject) => {
-    console.log('📂 Carregando arquivo:', file.name, '(' + (file.size/1024).toFixed(1) + 'KB)');
-    
-    const reader = new FileReader();
-    
-    reader.onload = function(e) {
-      try {
-        console.log('✅ FileReader completou');
-        
-        // Decodificar do buffer
-        const buffer = e.target.result;
-        const decoder = new TextDecoder('iso-8859-1');
-        const text = decoder.decode(buffer);
-        
-        console.log('✅ Decodificado:', text.length, 'chars');
-        
-        // Parse CSV
-        const records = parseYVIEWCOPA(text);
-        if (!records) {
-          toast('❌ Erro ao fazer parse do CSV');
-          resolve();
-          return;
-        }
-        
-        console.log('✅ Records parseados:', records.length);
-        
-        // Processar
-        const data = processYVIEWCOPAforCopiloto(records);
-        console.log('✅ Processado:', data.meso[0].cons.length, 'vendedores');
-        
-        if (data.meso[0].cons.length === 0) {
-          toast('❌ Nenhum vendedor SP encontrado');
-          resolve();
-          return;
-        }
-        
-        // Salvar e renderizar
-        (async () => {
-          await idbSet('dados', data);
-          ingest(data);
-          S.selMeso = null;
-          S.selVend = null;
-          render();
-          toast('✅ YVIEWCOPA: ' + data.meso[0].cons.length + ' vendedores carregados');
-          resolve();
-        })();
-        
-      } catch(err) {
-        console.error('❌ Erro:', err);
-        toast('❌ Erro ao processar: ' + err.message);
-        reject(err);
-      }
-    };
-    
-    reader.onerror = function(err) {
-      console.error('❌ Erro FileReader:', err);
-      toast('❌ Não consegui ler o arquivo');
-      reject(err);
-    };
-    
-    // Ler como ArrayBuffer
-    reader.readAsArrayBuffer(file);
-  });
-}
-
 function idb(){return new Promise((res,rej)=>{const r=indexedDB.open('copilotoSP',1);r.onupgradeneeded=e=>e.target.result.createObjectStore('kv');r.onsuccess=e=>res(e.target.result);r.onerror=e=>rej(e);});}
 async function idbGet(k){try{const db=await idb();return await new Promise((res)=>{const t=db.transaction('kv').objectStore('kv').get(k);t.onsuccess=()=>res(t.result);t.onerror=()=>res(null);});}catch(e){return null;}}
 async function idbSet(k,v){try{const db=await idb();const t=db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);}catch(e){}}
@@ -494,7 +365,7 @@ function fasePacing(){const meta=[['S10',38158],['S500',12810],['Gasolina',12420
 function emptyState(){
   return `<div class="empty"><div class="ic">📂</div><h2>Carregue os dados no aparelho</h2>
     <p>Esta página é só a interface — não traz nenhum dado da Royal. Toque abaixo e selecione o arquivo <b>copiloto_dados.json</b> que está no seu aparelho.</p>
-    <button class="btn" onclick="document.getElementById('fileinp').click()">⟳ Carregar YVIEWCOPA.CSV</button>
+    <button class="btn" onclick="document.getElementById('fileinp').click()">⟳ Carregar copiloto_dados.json</button>
     <div class="sec">Os dados ficam guardados só neste aparelho (cache local) e reabrem sozinhos na próxima vez.</div></div>`;
 }
 
