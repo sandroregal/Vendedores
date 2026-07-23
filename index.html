@@ -276,7 +276,7 @@ function conquistaGestor(){
   const tBB=DATA.reduce((s,d)=>s+d.anp_bb,0),rBB=DATA.reduce((s,d)=>s+d.royal_bb,0);
   const tCF=DATA.reduce((s,d)=>s+d.anp_cf,0),rCF=DATA.reduce((s,d)=>s+d.royal_cf,0);
   const gap=DATA.reduce((s,d)=>s+d.gap_tot,0),sub=DATA.filter(d=>d.mks>250).length;
-  let h=`<div class="gen">Conquista · base ANP de ${RET.ref.slice(3)} </div><div class="kpis">
+  let h=`<div class="gen">Conquista · base ANP de ${RET.anpref||RET.ref.slice(3)} </div><div class="kpis">
     <div class="kpi"><div class="lab">Penetração postos BB</div><div class="val">${nf1(rBB/tBB*100)}<small>%</small></div><div class="note">${nf(rBB)} de ${nf(tBB)} postos</div></div>
     <div class="kpi"><div class="lab">Penetração cons. final</div><div class="val">${nf1(rCF/tCF*100)}<small>%</small></div><div class="note">${nf(rCF)} de ${nf(tCF)}</div></div>
     <div class="kpi hi"><div class="lab">GAP total a conquistar</div><div class="val">${nf(gap)}</div><div class="note">instalações não atendidas</div></div>
