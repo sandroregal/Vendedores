@@ -218,48 +218,25 @@ const ZLAB={quente:'Quente · atrasado',alerta:'Alerta',perda:'Risco de perda',c
 
 /* ===== YVIEWCOPA CSV PROCESSOR ===== */
 function parseYVIEWCOPA(csvText) {
-  console.log('📖 Parseando CSV... (tamanho:', csvText.length, ')');
+  console.log('📖 Parseando CSV...');
   
-  // Dividir por quebra de linha (CRLF ou LF)
-  let lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+  const lines = csvText.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return null;
   
-  if (lines.length < 2) {
-    console.error('CSV com menos de 2 linhas:', lines.length);
-    toast('CSV muito pequeno ou vazio');
-    return null;
-  }
+  const header = lines[0].split(';').map(h => h.trim());
+  console.log('✅ Header:', header.length, 'colunas');
   
-  console.log('Lines:', lines.length);
-  
-  // Parse header
-  const headerLine = lines[0];
-  const header = headerLine.split(';').map(h => h.trim());
-  console.log('Colunas:', header.length, '- Primeiras:', header.slice(0, 5));
-  
-  // Parse records
   const records = [];
   for (let i = 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line) continue;
-    
-    const parts = line.split(';');
+    const parts = lines[i].split(';');
     const row = {};
-    
     header.forEach((h, idx) => {
       row[h] = parts[idx] ? parts[idx].trim() : '';
     });
-    
-    // Validar registro
-    if (row['ID parceiro'] && row['Qtd.vendas']) {
-      records.push(row);
-    }
+    records.push(row);
   }
   
-  console.log('✅ Registros parseados:', records.length);
-  if (records.length === 0) {
-    console.warn('Nenhum registro com ID parceiro + Qtd.vendas');
-  }
-  
+  console.log('✅ Registros lidos:', records.length);
   return records;
 }
 
@@ -302,47 +279,69 @@ function processYVIEWCOPAforCopiloto(records) {
 }
 
 async function carregarYVIEWCOPA(file) {
-  try {
-    console.log('📂 Arquivo selecionado:', file.name, 'Tamanho:', file.size);
+  return new Promise((resolve, reject) => {
+    console.log('📂 Carregando arquivo:', file.name, '(' + (file.size/1024).toFixed(1) + 'KB)');
     
-    // Tentar ler com diferentes encodings
-    let text;
-    try {
-      text = await file.text(); // Browser default (UTF-8)
-    } catch(e) {
-      console.warn('Erro UTF-8, tentando diferente...');
-      const buffer = await file.arrayBuffer();
-      const decoder = new TextDecoder('iso-8859-1');
-      text = decoder.decode(buffer);
-    }
+    const reader = new FileReader();
     
-    console.log('✅ Arquivo lido:', text.length, 'caracteres');
+    reader.onload = function(e) {
+      try {
+        console.log('✅ FileReader completou');
+        
+        // Decodificar do buffer
+        const buffer = e.target.result;
+        const decoder = new TextDecoder('iso-8859-1');
+        const text = decoder.decode(buffer);
+        
+        console.log('✅ Decodificado:', text.length, 'chars');
+        
+        // Parse CSV
+        const records = parseYVIEWCOPA(text);
+        if (!records) {
+          toast('❌ Erro ao fazer parse do CSV');
+          resolve();
+          return;
+        }
+        
+        console.log('✅ Records parseados:', records.length);
+        
+        // Processar
+        const data = processYVIEWCOPAforCopiloto(records);
+        console.log('✅ Processado:', data.meso[0].cons.length, 'vendedores');
+        
+        if (data.meso[0].cons.length === 0) {
+          toast('❌ Nenhum vendedor SP encontrado');
+          resolve();
+          return;
+        }
+        
+        // Salvar e renderizar
+        (async () => {
+          await idbSet('dados', data);
+          ingest(data);
+          S.selMeso = null;
+          S.selVend = null;
+          render();
+          toast('✅ YVIEWCOPA: ' + data.meso[0].cons.length + ' vendedores carregados');
+          resolve();
+        })();
+        
+      } catch(err) {
+        console.error('❌ Erro:', err);
+        toast('❌ Erro ao processar: ' + err.message);
+        reject(err);
+      }
+    };
     
-    const records = parseYVIEWCOPA(text);
-    if (!records || records.length === 0) {
-      toast('❌ Nenhum registro válido encontrado no CSV');
-      return;
-    }
+    reader.onerror = function(err) {
+      console.error('❌ Erro FileReader:', err);
+      toast('❌ Não consegui ler o arquivo');
+      reject(err);
+    };
     
-    const data = processYVIEWCOPAforCopiloto(records);
-    if (!data || data.meso[0].cons.length === 0) {
-      toast('❌ Nenhum vendedor SP (M3) encontrado');
-      return;
-    }
-    
-    await idbSet('dados', data);
-    console.log('✅ Dados salvos');
-    
-    ingest(data);
-    S.selMeso = null;
-    S.selVend = null;
-    render();
-    
-    toast('✅ YVIEWCOPA carregado: ' + data.meso[0].cons.length + ' vendedores');
-  } catch(err) {
-    console.error('Erro completo:', err);
-    toast('❌ Erro: ' + err.message);
-  }
+    // Ler como ArrayBuffer
+    reader.readAsArrayBuffer(file);
+  });
 }
 
 function idb(){return new Promise((res,rej)=>{const r=indexedDB.open('copilotoSP',1);r.onupgradeneeded=e=>e.target.result.createObjectStore('kv');r.onsuccess=e=>res(e.target.result);r.onerror=e=>rej(e);});}
