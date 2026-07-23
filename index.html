@@ -164,6 +164,17 @@ footer{padding:16px 14px 8px;text-align:center;font-size:10.5px;color:var(--cinz
 .empty .sec{margin-top:14px;font-size:11.5px;color:var(--cinza-cl);}
 .gen{text-align:center;font-size:11px;color:var(--cinza-cl);margin:2px 0 12px;}
 .tg.orf{background:#F3E2DA;color:#9A4423;}
+
+.oppttl{margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.18);font-size:12px;color:#BBD2EA;letter-spacing:.02em;}
+.oppttl b{color:#fff;}
+.oppwrap{margin-top:9px;display:flex;flex-direction:column;gap:1px;background:rgba(0,0,0,.14);border-radius:9px;overflow:hidden;}
+.oppitem{padding:8px 10px;display:flex;flex-direction:column;gap:1px;}
+.oppitem:nth-child(odd){background:rgba(255,255,255,.04);}
+.oppitem .on{font-size:12.5px;font-weight:600;color:#fff;line-height:1.25;}
+.oppitem .oc{font-size:11px;color:#A9C4E0;}
+.oppmore{padding:8px 10px;font-size:11px;color:#A9C4E0;background:rgba(0,0,0,.2);}
+.oppbtn{margin-top:10px;width:100%;background:var(--laranja);color:#2a1900;border:none;border-radius:9px;padding:11px;font-size:13.5px;font-weight:700;cursor:pointer;}
+.oppbtn:active{transform:scale(.985);}
 </style>
 </head>
 <body>
@@ -245,6 +256,27 @@ document.getElementById('fileinp').addEventListener('change',e=>{
 /* ===== toast ===== */
 let tt;function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2400);}
 
+
+const SEGLAB={BB:'Posto BB',CF:'Cons. final'};
+function oppBlock(d){
+  const o=(d.opp||[]); if(!o.length) return '';
+  const top=o.slice(0,25);
+  const li=top.map(x=>`<div class="oppitem"><span class="on">${x.n}</span><span class="oc">${x.c} · ${SEGLAB[x.s]||x.s}${x.t?' · tancagem '+nf(x.t)+' m³':''}</span></div>`).join('');
+  const more=o.length>top.length?`<div class="oppmore">+ ${nf(o.length-top.length)} nas demais cidades — use o botão abaixo para a lista completa</div>`:'';
+  return `<div class="oppttl">Oportunidades nominais · <b>${nf(o.length)}</b> instalações não atendidas</div>
+    <div class="oppwrap">${li}${more}</div>
+    <button class="oppbtn" onclick="shareOpp(this.dataset.m)" data-m="${d.meso.replace(/"/g,'')}">📤 Enviar lista por WhatsApp</button>`;
+}
+function shareOpp(meso){
+  const d=DATA.find(x=>x.meso===meso); if(!d||!d.opp) return;
+  const o=d.opp.slice(0,60);
+  const cab=`ROYAL FIC · Oportunidades — ${meso}\nBase ANP ${(RET.anpref||RET.ref)} cruzada com a carteira Royal.\nSão instalações da ANP sem compra registrada na Royal. Ordenadas por cidade com maior concentração.\nResponsáveis: ${d.cons.join(' · ')}\nTotal na região: ${nf(d.opp.length)} — abaixo os ${nf(o.length)} primeiros.\n`;
+  const linhas=o.map((x,i)=>`${i+1}. ${x.n} — ${x.c} · ${SEGLAB[x.s]||x.s}${x.t?' · tanc. '+nf(x.t)+' m³':''}`).join('\n');
+  const txt=cab+'\n'+linhas;
+  if(navigator.share){navigator.share({title:'Oportunidades '+meso,text:txt}).catch(()=>{});}
+  else if(navigator.clipboard){navigator.clipboard.writeText(txt).then(()=>toast('Lista copiada — cole no WhatsApp.'),()=>toast('Não consegui copiar.'));}
+  else toast('Compartilhamento indisponível neste aparelho.');
+}
 /* ===== mapa ===== */
 function bounds(){let a=1e9,b=1e9,c=-1e9,e=-1e9;MAPGEO.forEach(g=>(g.path.match(/-?\d+\.?\d*/g)||[]).forEach((v,i)=>{v=+v;if(i%2===0){a=Math.min(a,v);c=Math.max(c,v);}else{b=Math.min(b,v);e=Math.max(e,v);}}));return [a,b,c,e];}
 function buildMap(regions){
@@ -265,7 +297,7 @@ function drill(d){const dop=(d.d_opp>0?'+':'')+nf1(d.d_opp),oop=(d.o_opp>0?'+':'
       <div class="dcell"><div class="l">GAP consumidor final</div><div class="v">${nf(d.gap_cf)}</div></div>
       <div class="dcell"><div class="l">Oport. Diesel</div><div class="v ${d.d_opp>0?'pos':'neg'}">${dop} <small style="font-size:11px">p.p.</small></div></div>
       <div class="dcell"><div class="l">Oport. Otto</div><div class="v ${d.o_opp>0?'pos':'neg'}">${oop} <small style="font-size:11px">p.p.</small></div></div>
-    </div><div class="cons">Responsáveis: <b>${d.cons.join(' · ')}</b></div></div>`;}
+    </div><div class="cons">Responsáveis: <b>${d.cons.join(' · ')}</b></div>${oppBlock(d)}</div>`;}
 function rankRow(d,metric){const big=metric==='mks'?nf(d.mks):nf(d.gap_tot);const sm=metric==='mks'?'merc./vend.':'instalações';
   const op=Math.max(d.d_opp,d.o_opp);const opTxt=(op>0?'+':'')+nf1(op)+' p.p.';
   return `<div class="row" data-m="${d.meso.replace(/"/g,'')}"><div class="bar" style="background:${STCOL[d.status]}"></div>
